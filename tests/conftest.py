@@ -26,6 +26,7 @@ from src.app.core.domain import (
     ProductCount,
     Category,
 )
+from src.app.core.domain.entities.alert import Alert
 from src.app.core.ports import (
     MetaAdsPort,
     HtmlScraperPort,
@@ -443,6 +444,35 @@ class FakeWatchlistRepository:
         )
 
 
+class FakeAlertRepository:
+    """Fake alert repository for testing."""
+
+    def __init__(self) -> None:
+        self.alerts: list[Alert] = []
+
+    async def save(self, alert: Alert) -> Alert:
+        self.alerts.append(alert)
+        return alert
+
+    async def list_by_page(
+        self, page_id: str, limit: int = 50, offset: int = 0
+    ) -> list[Alert]:
+        page_alerts = sorted(
+            [a for a in self.alerts if a.page_id == page_id],
+            key=lambda a: a.created_at,
+            reverse=True,
+        )
+        return page_alerts[offset : offset + limit]
+
+    async def list_recent(self, limit: int = 100) -> list[Alert]:
+        sorted_alerts = sorted(
+            self.alerts,
+            key=lambda a: a.created_at,
+            reverse=True,
+        )
+        return sorted_alerts[:limit]
+
+
 # =============================================================================
 # Port Fixtures
 # =============================================================================
@@ -522,3 +552,9 @@ def mock_sitemap_port() -> AsyncMock:
 def fake_watchlist_repo() -> FakeWatchlistRepository:
     """Return a fake watchlist repository."""
     return FakeWatchlistRepository()
+
+
+@pytest.fixture
+def fake_alert_repo() -> FakeAlertRepository:
+    """Return a fake alert repository."""
+    return FakeAlertRepository()

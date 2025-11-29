@@ -34,11 +34,15 @@ from src.app.adapters.outbound.tasks.celery_task_dispatcher import CeleryTaskDis
 from src.app.adapters.outbound.repositories.watchlist_repository import (
     PostgresWatchlistRepository,
 )
+from src.app.adapters.outbound.repositories.alert_repository import (
+    PostgresAlertRepository,
+)
 from src.app.core.usecases.analyse_page_deep import AnalysePageDeepUseCase
 from src.app.core.usecases.analyse_website import AnalyseWebsiteUseCase
 from src.app.core.usecases.compute_shop_score import ComputeShopScoreUseCase
 from src.app.core.usecases.extract_product_count import ExtractProductCountUseCase
 from src.app.core.usecases.watchlists import RescoreWatchlistUseCase
+from src.app.core.usecases.detect_alerts_for_page import DetectAlertsForPageUseCase
 from src.app.infrastructure.logging.logger_adapter import StandardLoggingAdapter
 from src.app.infrastructure.settings.runtime_settings import get_settings
 
@@ -307,6 +311,23 @@ class WorkerContainer:
             watchlist_repository=PostgresWatchlistRepository(db_session),
             task_dispatcher=self._get_task_dispatcher(),
             logger=self._get_logger("rescore_watchlist"),
+        )
+
+    async def get_detect_alerts_for_page_use_case(
+        self,
+        db_session: AsyncSession,
+    ) -> DetectAlertsForPageUseCase:
+        """Create the DetectAlertsForPage use case with all dependencies.
+
+        Args:
+            db_session: Database session for repositories.
+
+        Returns:
+            DetectAlertsForPageUseCase: Configured use case instance.
+        """
+        return DetectAlertsForPageUseCase(
+            alert_repository=PostgresAlertRepository(db_session),
+            logger=self._get_logger("detect_alerts"),
         )
 
     @asynccontextmanager

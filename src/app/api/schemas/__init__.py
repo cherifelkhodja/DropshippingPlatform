@@ -36,6 +36,11 @@ from .watchlists import (
     watchlist_to_response,
     watchlist_item_to_response,
 )
+from .alerts import (
+    AlertResponse,
+    AlertListResponse,
+    alert_to_response,
+)
 
 __all__ = [
     "KeywordSearchRequest",
@@ -63,4 +68,8 @@ __all__ = [
     "WatchlistItemListResponse",
     "watchlist_to_response",
     "watchlist_item_to_response",
+    # Alerts
+    "AlertResponse",
+    "AlertListResponse",
+    "alert_to_response",
 ]

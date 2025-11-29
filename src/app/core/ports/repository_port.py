@@ -14,6 +14,7 @@ from ..domain.entities import (
     RankedShop,
     Watchlist,
     WatchlistItem,
+    Alert,
 )
 from ..domain.value_objects import ScanId, RankingCriteria
 
@@ -403,6 +404,64 @@ class WatchlistRepository(Protocol):
 
         Returns:
             True if the page is in the watchlist, False otherwise.
+
+        Raises:
+            RepositoryError: On database errors.
+        """
+        ...
+
+
+class AlertRepository(Protocol):
+    """Port interface for Alert entity persistence.
+
+    Defines the contract for storing and retrieving Alert entities
+    created during shop rescoring operations.
+    """
+
+    async def save(self, alert: Alert) -> Alert:
+        """Save a new alert.
+
+        Args:
+            alert: The Alert entity to save.
+
+        Returns:
+            The saved Alert entity.
+
+        Raises:
+            RepositoryError: On database errors.
+        """
+        ...
+
+    async def list_by_page(
+        self, page_id: str, limit: int = 50, offset: int = 0
+    ) -> list[Alert]:
+        """List all alerts for a specific page.
+
+        Returns alerts ordered by created_at descending (newest first).
+
+        Args:
+            page_id: The page identifier to filter by.
+            limit: Maximum number of alerts to return.
+            offset: Number of alerts to skip.
+
+        Returns:
+            List of Alert entities for the page.
+
+        Raises:
+            RepositoryError: On database errors.
+        """
+        ...
+
+    async def list_recent(self, limit: int = 100) -> list[Alert]:
+        """List recent alerts across all pages.
+
+        Returns alerts ordered by created_at descending (newest first).
+
+        Args:
+            limit: Maximum number of alerts to return.
+
+        Returns:
+            List of recent Alert entities.
 
         Raises:
             RepositoryError: On database errors.

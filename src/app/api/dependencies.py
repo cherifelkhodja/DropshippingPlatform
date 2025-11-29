@@ -38,6 +38,9 @@ from src.app.adapters.outbound.repositories.scoring_repository import (
 from src.app.adapters.outbound.repositories.watchlist_repository import (
     PostgresWatchlistRepository,
 )
+from src.app.adapters.outbound.repositories.alert_repository import (
+    PostgresAlertRepository,
+)
 from src.app.adapters.outbound.scraper.html_scraper import HtmlScraperClient
 from src.app.adapters.outbound.sitemap.sitemap_client import SitemapClient
 from src.app.adapters.outbound.tasks.celery_task_dispatcher import CeleryTaskDispatcher
@@ -48,6 +51,7 @@ from src.app.core.ports.repository_port import (
     KeywordRunRepository,
     ScoringRepository,
     WatchlistRepository,
+    AlertRepository,
 )
 from src.app.core.ports.task_dispatcher_port import TaskDispatcherPort
 from src.app.core.usecases.analyse_page_deep import AnalysePageDeepUseCase
@@ -220,6 +224,14 @@ def get_watchlist_repository(session: DbSession) -> PostgresWatchlistRepository:
 
 
 WatchlistRepo = Annotated[WatchlistRepository, Depends(get_watchlist_repository)]
+
+
+def get_alert_repository(session: DbSession) -> PostgresAlertRepository:
+    """Get alert repository."""
+    return PostgresAlertRepository(session)
+
+
+AlertRepo = Annotated[AlertRepository, Depends(get_alert_repository)]
 
 
 # =============================================================================

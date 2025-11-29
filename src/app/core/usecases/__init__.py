@@ -46,6 +46,10 @@ from .watchlists import (
     ListWatchlistItemsUseCase,
     RescoreWatchlistUseCase,
 )
+from .detect_alerts_for_page import (
+    DetectAlertsForPageUseCase,
+    DetectAlertsInput,
+)
 
 __all__ = [
     # Search Ads
@@ -77,4 +81,7 @@ __all__ = [
     "RemovePageFromWatchlistUseCase",
     "ListWatchlistItemsUseCase",
     "RescoreWatchlistUseCase",
+    # Alerts
+    "DetectAlertsForPageUseCase",
+    "DetectAlertsInput",
 ]
