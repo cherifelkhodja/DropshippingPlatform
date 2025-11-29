@@ -205,6 +205,10 @@ class SearchAdsByKeywordUseCase:
             meta_ad_id = raw.get("ad_library_id", ad_id)
 
             if not page_id:
+                self._logger.warning(
+                    "Skipping ad without page_id",
+                    raw_ad_id=raw.get("id"),
+                )
                 return None
 
             # Parse link URL if present
@@ -229,5 +233,10 @@ class SearchAdsByKeywordUseCase:
                 status=status,
             )
 
-        except Exception:
+        except (KeyError, TypeError, AttributeError) as exc:
+            self._logger.warning(
+                "Failed to convert raw ad to domain entity",
+                raw_ad_id=raw.get("id"),
+                error=str(exc),
+            )
             return None

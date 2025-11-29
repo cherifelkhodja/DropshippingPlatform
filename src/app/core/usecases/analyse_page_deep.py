@@ -265,7 +265,13 @@ class AnalysePageDeepUseCase:
 
             return ad
 
-        except Exception:
+        except (KeyError, TypeError, AttributeError, InvalidUrlError) as exc:
+            self._logger.warning(
+                "Failed to convert detailed ad to domain entity",
+                raw_ad_id=raw.get("id"),
+                page_id=page_id,
+                error=str(exc),
+            )
             return None
 
     def _extract_destination_url(self, raw: dict[str, Any]) -> Url | None:

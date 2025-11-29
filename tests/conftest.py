@@ -149,7 +149,7 @@ class FakePageRepository:
 
     def __init__(self) -> None:
         self.pages: dict[str, Page] = {}
-        self.blacklist: set[str] = set()
+        self._blacklisted_pages: set[str] = set()
 
     async def save(self, page: Page) -> None:
         self.pages[page.id] = page
@@ -164,10 +164,10 @@ class FakePageRepository:
         return list(self.pages.values())
 
     async def is_blacklisted(self, page_id: str) -> bool:
-        return page_id in self.blacklist
+        return page_id in self._blacklisted_pages
 
     async def blacklist(self, page_id: str) -> None:
-        self.blacklist.add(page_id)
+        self._blacklisted_pages.add(page_id)
 
 
 class FakeAdsRepository:
