@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
 
+from ..tiering import score_to_tier
+
 
 @dataclass
 class ShopScore:
@@ -102,28 +104,22 @@ class ShopScore:
     def tier(self) -> str:
         """Get the tier classification based on score.
 
+        Tier classification is delegated to the central tiering module
+        (core/domain/tiering.py) which is the single source of truth
+        for all tier-related logic.
+
         Tiers are based on score ranges:
-        - XXL: >= 85
-        - XL: >= 70
-        - L: >= 55
-        - M: >= 40
-        - S: >= 25
-        - XS: < 25
+        - XXL: 85-100
+        - XL: 70-85
+        - L: 55-70
+        - M: 40-55
+        - S: 25-40
+        - XS: 0-25
 
         Returns:
             The tier as a string (XS, S, M, L, XL, XXL).
         """
-        if self.score >= 85.0:
-            return "XXL"
-        elif self.score >= 70.0:
-            return "XL"
-        elif self.score >= 55.0:
-            return "L"
-        elif self.score >= 40.0:
-            return "M"
-        elif self.score >= 25.0:
-            return "S"
-        return "XS"
+        return score_to_tier(self.score)
 
     def __eq__(self, other: object) -> bool:
         """Check equality based on identity (id)."""

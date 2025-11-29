@@ -235,7 +235,7 @@ class FakeScoringRepository:
     ) -> list["RankedShop"]:
         """Return ranked shops matching criteria."""
         from src.app.core.domain.entities.ranked_shop import RankedShop
-        from src.app.core.domain.value_objects.ranking import TIER_SCORE_RANGES
+        from src.app.core.domain.tiering import tier_to_score_range
 
         # Filter scores based on criteria
         filtered = self.scores.copy()
@@ -244,15 +244,16 @@ class FakeScoringRepository:
             filtered = [s for s in filtered if s.score >= criteria.min_score]
 
         if criteria.tier is not None:
-            score_range = TIER_SCORE_RANGES.get(criteria.tier)
-            if score_range:
-                min_score, max_score = score_range
+            try:
+                min_score, max_score = tier_to_score_range(criteria.tier)
                 if criteria.tier == "XXL":
                     filtered = [s for s in filtered if s.score >= min_score]
                 else:
                     filtered = [
                         s for s in filtered if min_score <= s.score < max_score
                     ]
+            except ValueError:
+                pass  # Invalid tier - skip filtering
 
         if criteria.country is not None:
             filtered = [
@@ -292,7 +293,7 @@ class FakeScoringRepository:
         criteria: "RankingCriteria",
     ) -> int:
         """Count shops matching criteria (ignores limit/offset)."""
-        from src.app.core.domain.value_objects.ranking import TIER_SCORE_RANGES
+        from src.app.core.domain.tiering import tier_to_score_range
 
         filtered = self.scores.copy()
 
@@ -300,15 +301,16 @@ class FakeScoringRepository:
             filtered = [s for s in filtered if s.score >= criteria.min_score]
 
         if criteria.tier is not None:
-            score_range = TIER_SCORE_RANGES.get(criteria.tier)
-            if score_range:
-                min_score, max_score = score_range
+            try:
+                min_score, max_score = tier_to_score_range(criteria.tier)
                 if criteria.tier == "XXL":
                     filtered = [s for s in filtered if s.score >= min_score]
                 else:
                     filtered = [
                         s for s in filtered if min_score <= s.score < max_score
                     ]
+            except ValueError:
+                pass  # Invalid tier - skip filtering
 
         if criteria.country is not None:
             filtered = [

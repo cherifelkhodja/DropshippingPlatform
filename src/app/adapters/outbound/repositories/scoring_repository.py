@@ -12,7 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.app.core.domain.entities.shop_score import ShopScore
 from src.app.core.domain.entities.ranked_shop import RankedShop
 from src.app.core.domain.errors import RepositoryError
-from src.app.core.domain.value_objects.ranking import RankingCriteria, TIER_SCORE_RANGES
+from src.app.core.domain.tiering import score_to_tier, tier_to_score_range
+from src.app.core.domain.value_objects.ranking import RankingCriteria
 from src.app.infrastructure.db.mappers import shop_score_mapper
 from src.app.infrastructure.db.models.shop_score_model import ShopScoreModel
 from src.app.infrastructure.db.models.page_model import PageModel
@@ -147,8 +148,8 @@ class PostgresScoringRepository:
         """Build SQLAlchemy filter conditions from ranking criteria.
 
         Translates domain criteria into database filter conditions.
-        Tier filtering is done by translating tier names to score ranges
-        using the TIER_SCORE_RANGES mapping from the domain.
+        Tier filtering uses the central tiering module (core/domain/tiering.py)
+        to translate tier names to score ranges.
 
         Args:
             criteria: The ranking criteria with filter parameters.
@@ -162,23 +163,18 @@ class PostgresScoringRepository:
         if criteria.min_score is not None:
             filters.append(ShopScoreModel.score >= criteria.min_score)
 
-        # Filter by tier (translate to score range)
-        # Tiers are based on score ranges defined in TIER_SCORE_RANGES:
-        # - XXL: 85-100
-        # - XL: 70-85
-        # - L: 55-70
-        # - M: 40-55
-        # - S: 25-40
-        # - XS: 0-25
+        # Filter by tier (translate to score range using central tiering module)
         if criteria.tier is not None:
-            score_range = TIER_SCORE_RANGES.get(criteria.tier)
-            if score_range:
-                min_tier_score, max_tier_score = score_range
+            try:
+                min_tier_score, max_tier_score = tier_to_score_range(criteria.tier)
                 filters.append(ShopScoreModel.score >= min_tier_score)
                 # For XXL tier (85-100), max is 100 inclusive
                 # For other tiers, max is exclusive (e.g., XL is >= 70 and < 85)
                 if criteria.tier != "XXL":
                     filters.append(ShopScoreModel.score < max_tier_score)
+            except ValueError:
+                # Invalid tier - criteria validation should catch this earlier
+                pass
 
         # Filter by country (requires join with PageModel)
         if criteria.country is not None:
@@ -194,7 +190,7 @@ class PostgresScoringRepository:
         """Convert database row to RankedShop domain projection.
 
         Maps ORM models to the RankedShop read-model, computing the tier
-        from the score value.
+        from the score value using the central tiering module.
 
         Args:
             score_model: The ShopScoreModel from the database.
@@ -203,20 +199,9 @@ class PostgresScoringRepository:
         Returns:
             A RankedShop projection instance.
         """
-        # Compute tier from score (same logic as ShopScore.tier property)
+        # Compute tier using central tiering module (core/domain/tiering.py)
         score = score_model.score
-        if score >= 85.0:
-            tier = "XXL"
-        elif score >= 70.0:
-            tier = "XL"
-        elif score >= 55.0:
-            tier = "L"
-        elif score >= 40.0:
-            tier = "M"
-        elif score >= 25.0:
-            tier = "S"
-        else:
-            tier = "XS"
+        tier = score_to_tier(score)
 
         return RankedShop(
             page_id=str(score_model.page_id),

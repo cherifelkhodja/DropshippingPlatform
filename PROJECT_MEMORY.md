@@ -12,8 +12,8 @@
 |-----|-------|
 | **Project Name** | Dropshipping Platform |
 | **Current Version** | v0.2.1 |
-| **Current Sprint** | Sprint 2.1 — Hardening & Cleanup (completed) |
-| **Last Action** | Tagged v0.2.1, CI fixes (mypy, coverage, httpx) |
+| **Current Sprint** | Sprint 4.1 — Tiering & Scoring Consistency (completed) |
+| **Last Action** | Centralized tiering logic, added snapshot tests |
 | **Architecture** | Hexagonal (Ports & Adapters) |
 | **Python Version** | 3.11+ |
 | **Package Manager** | uv (modern pyproject.toml) |
@@ -78,8 +78,9 @@ DropshippingPlatform/
 │       │
 │       ├── core/                # DOMAIN (protected)
 │       │   ├── domain/
-│       │   │   ├── entities/    # Page, Ad, Scan, KeywordRun, ShopifyProfile
-│       │   │   ├── value_objects/  # Url, Country, Currency, etc.
+│       │   │   ├── entities/    # Page, Ad, Scan, KeywordRun, ShopifyProfile, ShopScore, RankedShop
+│       │   │   ├── value_objects/  # Url, Country, Currency, RankingCriteria, etc.
+│       │   │   ├── tiering.py   # Single source of truth for tier logic (Sprint 4.1)
 │       │   │   └── errors.py    # Domain exceptions
 │       │   ├── ports/           # Interfaces (Protocol)
 │       │   └── usecases/        # Application logic
@@ -398,9 +399,65 @@ DropshippingPlatform/
 - **Testing**: 200+ tests passing, ~90% core coverage
 - **Release**: Tagged as `v0.2.1`
 
+### Sprint 3 — Scoring Engine (COMPLETED)
+- **Domain Layer**:
+  - `ShopScore` entity (score 0-100, components dict, tier property)
+  - Score components: ads_activity, shopify, creative_quality, catalog
+- **Ports & Adapters**:
+  - `ScoringRepository` port: save, get_latest_by_page_id, list_top, count
+  - `PostgresScoringRepository` implementation with SQLAlchemy
+  - `ShopScoreModel` ORM model + mapper
+- **Use Case**:
+  - `ComputeShopScoreUseCase`: weighted scoring formula
+    - 40% ads_activity (count, country/platform diversity)
+    - 30% shopify (store signals, currency, ads presence)
+    - 20% creative_quality (CTAs, emojis, discount indicators)
+    - 10% catalog (product count normalized to 200)
+- **Celery Task**: `compute_shop_score_task` via `TaskDispatcherPort`
+- **API Endpoints**:
+  - `GET /pages/{page_id}/score` - Get latest score
+  - `GET /pages/top` - List top-scoring shops
+  - `POST /pages/{page_id}/score/recompute` - Trigger recomputation
+- **Testing**: Unit tests for use case, repository integration tests
+
+### Sprint 4 — Ranking Engine (COMPLETED)
+- **Domain Layer**:
+  - `RankingCriteria` value object (limit, offset, tier, min_score, country)
+  - `RankedShop` read-model projection (page_id, score, tier, url, country, name)
+  - `RankedShopsResult` with pagination (items, total, has_more, page_count)
+- **Ports & Adapters**:
+  - Extended `ScoringRepository` with `list_ranked(criteria)`, `count_ranked(criteria)`
+  - Implementation with PageModel join, tier-based score filtering
+- **Use Case**:
+  - `GetRankedShopsUseCase`: orchestrates list_ranked + count_ranked
+- **API Endpoints**:
+  - `GET /pages/ranked` - New ranked shops endpoint with filters
+    - Query params: limit, offset, tier, min_score, country
+    - Response: RankedShopsResponse (items + total + pagination)
+  - Refactored `GET /pages/top` to use ranking use case internally
+- **Testing**: Unit tests, API integration tests (22 new tests)
+
+### Sprint 4.1 — Tiering & Scoring Consistency (COMPLETED)
+- **Centralized Tiering Logic**:
+  - New module: `core/domain/tiering.py` (single source of truth)
+  - Functions: `score_to_tier(score)`, `tier_to_score_range(tier)`, `is_valid_tier(tier)`
+  - Constants: `TIER_SCORE_RANGES`, `VALID_TIERS`, `TIERS_ORDERED`
+  - Tier definitions:
+    - XXL: 85-100, XL: 70-85, L: 55-70, M: 40-55, S: 25-40, XS: 0-25
+- **Refactored Consumers**:
+  - `ShopScore.tier` property: now uses `score_to_tier()` from tiering module
+  - `RankingCriteria`: imports TIER_SCORE_RANGES/VALID_TIERS from tiering module
+  - `PostgresScoringRepository`: uses `tier_to_score_range()` and `score_to_tier()`
+  - `FakeScoringRepository` (tests): uses tiering module functions
+- **Snapshot Tests** (guard-rails for scoring formula):
+  - `test_snapshot_scoring_high_winner`: Premium shop → score 85-100, tier XXL
+  - `test_snapshot_scoring_dead_shop`: Inactive shop → score ≤20, tier XS
+- **Documentation**: Added reference to tiering module in relevant docstrings
+- **Testing**: All 35 scoring/ranking tests passing
+
 ---
 
-## 5. NEXT STEPS (TODO — Sprint 3 Draft)
+## 5. NEXT STEPS (TODO — Sprint 5 Draft)
 
 | Priority | Task | Description |
 |----------|------|-------------|
@@ -415,7 +472,7 @@ DropshippingPlatform/
 
 ## 6. UNCOMMITTED CODE
 
-*None — All Sprint 2.1 code has been committed.*
+*None — All Sprint 4.1 code has been committed.*
 
 ---
 
@@ -443,6 +500,7 @@ Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
 7. **Exception Mapping**: Domain errors → appropriate HTTP status codes
 8. **Logging**: Use `StandardLoggingAdapter` for structured logging, never `print()`
 9. **Admin Auth**: Admin endpoints protected via `X-Admin-Api-Key` header
+10. **Tiering Logic**: All tier ↔ score conversions must use `core/domain/tiering.py` (single source of truth)
 
 ---
 
