@@ -14,11 +14,45 @@ from src.app.api.schemas.scoring import (
     RankedShopsResponse,
     ranked_result_to_response,
 )
+from src.app.api.schemas.products import (
+    ProductResponse,
+    ProductListResponse,
+    SyncProductsResponse,
+)
 from src.app.api.schemas.common import ErrorResponse
-from src.app.api.dependencies import PageRepo, ScoringRepo, TaskDispatcher, GetRankedShopsUC
+from src.app.api.dependencies import (
+    PageRepo,
+    ScoringRepo,
+    TaskDispatcher,
+    GetRankedShopsUC,
+    ProductRepo,
+    SyncProductsUC,
+)
 from src.app.core.domain.entities.page import Page
+from src.app.core.domain.entities.product import Product
 from src.app.core.domain.errors import EntityNotFoundError
 from src.app.core.domain.value_objects.ranking import RankingCriteria
+
+
+def _product_to_response(product: Product) -> ProductResponse:
+    """Convert domain Product to API response."""
+    return ProductResponse(
+        id=product.id,
+        page_id=product.page_id,
+        handle=product.handle,
+        title=product.title,
+        url=product.url,
+        price_min=product.price_min,
+        price_max=product.price_max,
+        currency=product.currency,
+        available=product.available,
+        tags=product.tags,
+        vendor=product.vendor,
+        image_url=product.image_url,
+        product_type=product.product_type,
+        created_at=product.created_at,
+        updated_at=product.updated_at,
+    )
 
 router = APIRouter(prefix="/pages", tags=["Pages"])
 
@@ -318,4 +352,81 @@ async def recompute_page_score(
         page_id=page_id,
         task_id=task_id,
         status="dispatched",
+    )
+
+
+# =============================================================================
+# Product Endpoints
+# =============================================================================
+
+
+@router.get(
+    "/{page_id}/products",
+    response_model=ProductListResponse,
+    summary="List products for a page",
+    description="Get the list of products for a specific page (store).",
+    responses={
+        404: {"model": ErrorResponse, "description": "Page not found"},
+        500: {"model": ErrorResponse, "description": "Database error"},
+    },
+)
+async def list_page_products(
+    page_id: str,
+    page_repo: PageRepo,
+    product_repo: ProductRepo,
+    limit: int = Query(default=50, ge=1, le=200, description="Maximum products to return"),
+    offset: int = Query(default=0, ge=0, description="Offset for pagination"),
+) -> ProductListResponse:
+    """List products for a specific page.
+
+    Returns a paginated list of products from the store's catalog.
+    Products are ordered by title ascending.
+    """
+    # Verify page exists
+    page = await page_repo.get(page_id)
+    if page is None:
+        raise EntityNotFoundError("Page", page_id)
+
+    # Get products
+    products = await product_repo.list_by_page(page_id, limit=limit, offset=offset)
+    total = await product_repo.count_by_page(page_id)
+
+    return ProductListResponse(
+        items=[_product_to_response(p) for p in products],
+        total=total,
+        page_id=page_id,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.post(
+    "/{page_id}/products/sync",
+    response_model=SyncProductsResponse,
+    summary="Sync products for a page",
+    description="Synchronize products from a Shopify store's catalog.",
+    responses={
+        404: {"model": ErrorResponse, "description": "Page not found"},
+        500: {"model": ErrorResponse, "description": "Sync error"},
+    },
+)
+async def sync_page_products(
+    page_id: str,
+    sync_products_uc: SyncProductsUC,
+) -> SyncProductsResponse:
+    """Synchronize products for a Shopify page.
+
+    Fetches products from the store's /products.json endpoint and
+    upserts them to the database. For non-Shopify stores or stores
+    without accessible products.json, returns an appropriate error.
+    """
+    result = await sync_products_uc.execute(page_id=page_id)
+
+    return SyncProductsResponse(
+        page_id=result.page_id,
+        products_synced=result.products_synced,
+        products_extracted=result.products_extracted,
+        is_shopify=result.is_shopify,
+        source=result.source,
+        error=result.error,
     )

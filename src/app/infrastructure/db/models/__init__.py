@@ -11,6 +11,7 @@ from src.app.infrastructure.db.models.page_model import PageModel
 from src.app.infrastructure.db.models.scan_model import ScanModel
 from src.app.infrastructure.db.models.shop_score_model import ShopScoreModel
 from src.app.infrastructure.db.models.watchlist_model import WatchlistModel, WatchlistItemModel
+from src.app.infrastructure.db.models.product_model import ProductModel
 
 __all__ = [
     "Base",
@@ -22,4 +23,5 @@ __all__ = [
     "ShopScoreModel",
     "WatchlistModel",
     "WatchlistItemModel",
+    "ProductModel",
 ]

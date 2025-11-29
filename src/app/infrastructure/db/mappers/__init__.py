@@ -10,6 +10,7 @@ from src.app.infrastructure.db.mappers import page_mapper
 from src.app.infrastructure.db.mappers import scan_mapper
 from src.app.infrastructure.db.mappers import shop_score_mapper
 from src.app.infrastructure.db.mappers import watchlist_mapper
+from src.app.infrastructure.db.mappers import product_mapper
 
 __all__ = [
     "page_mapper",
@@ -18,4 +19,5 @@ __all__ = [
     "keyword_run_mapper",
     "shop_score_mapper",
     "watchlist_mapper",
+    "product_mapper",
 ]

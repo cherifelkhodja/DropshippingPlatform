@@ -15,6 +15,7 @@ from ..domain.entities import (
     Watchlist,
     WatchlistItem,
     Alert,
+    Product,
 )
 from ..domain.value_objects import ScanId, RankingCriteria
 
@@ -462,6 +463,92 @@ class AlertRepository(Protocol):
 
         Returns:
             List of recent Alert entities.
+
+        Raises:
+            RepositoryError: On database errors.
+        """
+        ...
+
+
+class ProductRepository(Protocol):
+    """Port interface for Product entity persistence.
+
+    Defines the contract for storing and retrieving Product entities
+    from a store's catalog.
+    """
+
+    async def upsert_many(self, products: Sequence[Product]) -> None:
+        """Upsert multiple products in batch.
+
+        Updates existing products (matched by page_id + handle) or inserts
+        new ones. This enables efficient catalog synchronization.
+
+        Args:
+            products: Sequence of Product entities to upsert.
+
+        Raises:
+            RepositoryError: On database errors.
+        """
+        ...
+
+    async def list_by_page(
+        self, page_id: str, limit: int = 50, offset: int = 0
+    ) -> list[Product]:
+        """List all products for a specific page (store).
+
+        Returns products ordered by title ascending.
+
+        Args:
+            page_id: The page identifier to filter by.
+            limit: Maximum number of products to return.
+            offset: Number of products to skip.
+
+        Returns:
+            List of Product entities for the page.
+
+        Raises:
+            RepositoryError: On database errors.
+        """
+        ...
+
+    async def get_by_id(self, product_id: str) -> Product | None:
+        """Retrieve a product by its ID.
+
+        Args:
+            product_id: The unique product identifier.
+
+        Returns:
+            The Product entity if found, None otherwise.
+
+        Raises:
+            RepositoryError: On database errors.
+        """
+        ...
+
+    async def delete_by_page(self, page_id: str) -> int:
+        """Delete all products for a page.
+
+        Used for full catalog resync operations.
+
+        Args:
+            page_id: The page identifier whose products to delete.
+
+        Returns:
+            Number of products deleted.
+
+        Raises:
+            RepositoryError: On database errors.
+        """
+        ...
+
+    async def count_by_page(self, page_id: str) -> int:
+        """Count products for a specific page.
+
+        Args:
+            page_id: The page identifier to count products for.
+
+        Returns:
+            Total count of products for the page.
 
         Raises:
             RepositoryError: On database errors.

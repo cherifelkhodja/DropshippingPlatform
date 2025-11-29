@@ -18,9 +18,11 @@ from .repository_port import (
     ScoringRepository,
     WatchlistRepository,
     AlertRepository,
+    ProductRepository,
 )
 from .task_dispatcher_port import TaskDispatcherPort
 from .logging_port import LoggingPort
+from .product_extractor_port import ProductExtractorPort, ProductExtractionResult
 
 __all__ = [
     # Meta Ads
@@ -36,6 +38,10 @@ __all__ = [
     "ScoringRepository",
     "WatchlistRepository",
     "AlertRepository",
+    "ProductRepository",
+    # Product Extraction
+    "ProductExtractorPort",
+    "ProductExtractionResult",
     # Task Orchestration
     "TaskDispatcherPort",
     # Logging

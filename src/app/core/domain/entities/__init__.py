@@ -25,6 +25,7 @@ from .alert import (
     SEVERITY_CRITICAL,
     VALID_SEVERITIES,
 )
+from .product import Product
 
 __all__ = [
     # Page
@@ -66,4 +67,6 @@ __all__ = [
     "SEVERITY_WARNING",
     "SEVERITY_CRITICAL",
     "VALID_SEVERITIES",
+    # Product
+    "Product",
 ]

@@ -31,7 +31,9 @@ from src.app.core.ports import (
     MetaAdsPort,
     HtmlScraperPort,
     SitemapPort,
+    ProductExtractorPort,
 )
+from src.app.core.domain.entities.product import Product
 
 
 # =============================================================================
@@ -473,6 +475,40 @@ class FakeAlertRepository:
         return sorted_alerts[:limit]
 
 
+class FakeProductRepository:
+    """Fake product repository for testing."""
+
+    def __init__(self) -> None:
+        self.products: dict[str, Product] = {}  # id -> Product
+        self.upsert_calls: list[Sequence[Product]] = []
+
+    async def upsert_many(self, products: Sequence[Product]) -> None:
+        self.upsert_calls.append(list(products))
+        for product in products:
+            self.products[product.id] = product
+
+    async def list_by_page(
+        self, page_id: str, limit: int = 50, offset: int = 0
+    ) -> list[Product]:
+        page_products = sorted(
+            [p for p in self.products.values() if p.page_id == page_id],
+            key=lambda p: p.title,
+        )
+        return page_products[offset : offset + limit]
+
+    async def get_by_id(self, product_id: str) -> Product | None:
+        return self.products.get(product_id)
+
+    async def delete_by_page(self, page_id: str) -> int:
+        to_delete = [p for p in self.products.values() if p.page_id == page_id]
+        for product in to_delete:
+            del self.products[product.id]
+        return len(to_delete)
+
+    async def count_by_page(self, page_id: str) -> int:
+        return len([p for p in self.products.values() if p.page_id == page_id])
+
+
 # =============================================================================
 # Port Fixtures
 # =============================================================================
@@ -558,3 +594,25 @@ def fake_watchlist_repo() -> FakeWatchlistRepository:
 def fake_alert_repo() -> FakeAlertRepository:
     """Return a fake alert repository."""
     return FakeAlertRepository()
+
+
+@pytest.fixture
+def fake_product_repo() -> FakeProductRepository:
+    """Return a fake product repository."""
+    return FakeProductRepository()
+
+
+@pytest.fixture
+def mock_product_extractor_port() -> AsyncMock:
+    """Return a mocked ProductExtractorPort."""
+    from src.app.core.ports.product_extractor_port import ProductExtractionResult
+
+    mock = AsyncMock(spec=ProductExtractorPort)
+    mock.is_supported.return_value = True
+    mock.extract_products.return_value = ProductExtractionResult(
+        products=[],
+        total_found=0,
+        source="products.json",
+        error=None,
+    )
+    return mock

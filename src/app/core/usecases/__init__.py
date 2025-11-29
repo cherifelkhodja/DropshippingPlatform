@@ -50,6 +50,10 @@ from .detect_alerts_for_page import (
     DetectAlertsForPageUseCase,
     DetectAlertsInput,
 )
+from .sync_products_for_page import (
+    SyncProductsForPageUseCase,
+    SyncProductsResult,
+)
 
 __all__ = [
     # Search Ads
@@ -84,4 +88,7 @@ __all__ = [
     # Alerts
     "DetectAlertsForPageUseCase",
     "DetectAlertsInput",
+    # Sync Products
+    "SyncProductsForPageUseCase",
+    "SyncProductsResult",
 ]

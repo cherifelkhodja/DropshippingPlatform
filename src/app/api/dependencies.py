@@ -41,7 +41,13 @@ from src.app.adapters.outbound.repositories.watchlist_repository import (
 from src.app.adapters.outbound.repositories.alert_repository import (
     PostgresAlertRepository,
 )
+from src.app.adapters.outbound.repositories.product_repository import (
+    PostgresProductRepository,
+)
 from src.app.adapters.outbound.scraper.html_scraper import HtmlScraperClient
+from src.app.adapters.outbound.product_extractor.shopify_product_extractor import (
+    ShopifyProductExtractor,
+)
 from src.app.adapters.outbound.sitemap.sitemap_client import SitemapClient
 from src.app.adapters.outbound.tasks.celery_task_dispatcher import CeleryTaskDispatcher
 from src.app.core.ports.repository_port import (
@@ -52,6 +58,7 @@ from src.app.core.ports.repository_port import (
     ScoringRepository,
     WatchlistRepository,
     AlertRepository,
+    ProductRepository,
 )
 from src.app.core.ports.task_dispatcher_port import TaskDispatcherPort
 from src.app.core.usecases.analyse_page_deep import AnalysePageDeepUseCase
@@ -63,6 +70,7 @@ from src.app.core.usecases.compute_shop_score import ComputeShopScoreUseCase
 from src.app.core.usecases.get_ranked_shops import GetRankedShopsUseCase
 from src.app.core.usecases.extract_product_count import ExtractProductCountUseCase
 from src.app.core.usecases.search_ads_by_keyword import SearchAdsByKeywordUseCase
+from src.app.core.usecases.sync_products_for_page import SyncProductsForPageUseCase
 from src.app.core.usecases.watchlists import (
     CreateWatchlistUseCase,
     GetWatchlistUseCase,
@@ -234,6 +242,14 @@ def get_alert_repository(session: DbSession) -> PostgresAlertRepository:
 AlertRepo = Annotated[AlertRepository, Depends(get_alert_repository)]
 
 
+def get_product_repository(session: DbSession) -> PostgresProductRepository:
+    """Get product repository."""
+    return PostgresProductRepository(session)
+
+
+ProductRepo = Annotated[ProductRepository, Depends(get_product_repository)]
+
+
 # =============================================================================
 # HTTP Session
 # =============================================================================
@@ -293,6 +309,14 @@ def get_html_scraper(http_session: HttpSession) -> HtmlScraperClient:
 def get_sitemap_client(http_session: HttpSession) -> SitemapClient:
     """Get sitemap client."""
     return SitemapClient(
+        session=http_session,
+        logger=get_logger(),
+    )
+
+
+def get_product_extractor(http_session: HttpSession) -> ShopifyProductExtractor:
+    """Get Shopify product extractor."""
+    return ShopifyProductExtractor(
         session=http_session,
         logger=get_logger(),
     )
@@ -443,6 +467,23 @@ def get_ranked_shops_use_case(
     )
 
 
+def get_sync_products_use_case(
+    page_repo: PageRepo,
+    product_repo: ProductRepo,
+    http_session: HttpSession,
+) -> SyncProductsForPageUseCase:
+    """Get SyncProductsForPage use case.
+
+    Uses injected repository dependencies for cleaner composition.
+    """
+    return SyncProductsForPageUseCase(
+        page_repository=page_repo,
+        product_repository=product_repo,
+        product_extractor=get_product_extractor(http_session),
+        logger=get_logger("usecase.sync_products"),
+    )
+
+
 # Type aliases for use cases
 SearchAdsUseCase = Annotated[
     SearchAdsByKeywordUseCase,
@@ -471,6 +512,10 @@ ComputeShopScoreUC = Annotated[
 GetRankedShopsUC = Annotated[
     GetRankedShopsUseCase,
     Depends(get_ranked_shops_use_case),
+]
+SyncProductsUC = Annotated[
+    SyncProductsForPageUseCase,
+    Depends(get_sync_products_use_case),
 ]
 
 

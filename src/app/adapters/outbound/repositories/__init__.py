@@ -21,6 +21,9 @@ from src.app.adapters.outbound.repositories.scoring_repository import (
 from src.app.adapters.outbound.repositories.watchlist_repository import (
     PostgresWatchlistRepository,
 )
+from src.app.adapters.outbound.repositories.product_repository import (
+    PostgresProductRepository,
+)
 
 __all__ = [
     "PostgresPageRepository",
@@ -29,4 +32,5 @@ __all__ = [
     "PostgresKeywordRunRepository",
     "PostgresScoringRepository",
     "PostgresWatchlistRepository",
+    "PostgresProductRepository",
 ]
