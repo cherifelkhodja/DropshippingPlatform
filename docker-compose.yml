@@ -32,6 +32,8 @@ services:
       - .env
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dropshipping}:${POSTGRES_PASSWORD:-dropshipping}@postgres:5432/${POSTGRES_DB:-dropshipping}
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
     ports:
       - "8000:8000"
     networks:
@@ -39,7 +41,47 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     command: ["./scripts/start.sh"]
+
+  redis:
+    image: redis:7-alpine
+    container_name: dropshipping_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - backend_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    volumes:
+      - redis_data:/data
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/app.Dockerfile
+    container_name: dropshipping_worker
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dropshipping}:${POSTGRES_PASSWORD:-dropshipping}@postgres:5432/${POSTGRES_DB:-dropshipping}
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    networks:
+      - backend_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ["celery", "-A", "src.app.infrastructure.celery.celery_app", "worker", "--loglevel=info"]
 
   mockserver:
     image: python:3.11-slim
@@ -58,6 +100,8 @@ services:
 
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
     driver: local
 
 networks:

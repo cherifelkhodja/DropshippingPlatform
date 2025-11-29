@@ -15,15 +15,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.app.infrastructure.db.database import Database, DatabaseConfig
 from src.app.infrastructure.settings.runtime_settings import AppSettings, get_settings
 
-from src.app.adapters.outbound.repositories.page_repository import PostgresPageRepository
+from src.app.adapters.outbound.repositories.page_repository import (
+    PostgresPageRepository,
+)
 from src.app.adapters.outbound.repositories.ads_repository import PostgresAdsRepository
-from src.app.adapters.outbound.repositories.scan_repository import PostgresScanRepository
+from src.app.adapters.outbound.repositories.scan_repository import (
+    PostgresScanRepository,
+)
 from src.app.adapters.outbound.repositories.keyword_run_repository import (
     PostgresKeywordRunRepository,
 )
 from src.app.adapters.outbound.meta.meta_ads_client import MetaAdsClient
 from src.app.adapters.outbound.scraper.html_scraper import HtmlScraperClient
 from src.app.adapters.outbound.sitemap.sitemap_client import SitemapClient
+from src.app.adapters.outbound.tasks.celery_task_dispatcher import CeleryTaskDispatcher
+from src.app.infrastructure.celery.celery_app import celery_app
 
 from src.app.core.usecases.search_ads_by_keyword import SearchAdsByKeywordUseCase
 from src.app.core.usecases.compute_page_active_ads_count import (
@@ -147,7 +153,9 @@ def get_keyword_run_repository(session: DbSession) -> PostgresKeywordRunReposito
 PageRepo = Annotated[PostgresPageRepository, Depends(get_page_repository)]
 AdsRepo = Annotated[PostgresAdsRepository, Depends(get_ads_repository)]
 ScanRepo = Annotated[PostgresScanRepository, Depends(get_scan_repository)]
-KeywordRunRepo = Annotated[PostgresKeywordRunRepository, Depends(get_keyword_run_repository)]
+KeywordRunRepo = Annotated[
+    PostgresKeywordRunRepository, Depends(get_keyword_run_repository)
+]
 
 
 # =============================================================================
@@ -212,6 +220,29 @@ def get_sitemap_client(http_session: HttpSession) -> SitemapClient:
         session=http_session,
         logger=get_logger(),
     )
+
+
+# =============================================================================
+# Task Dispatcher
+# =============================================================================
+
+
+@lru_cache
+def get_task_dispatcher() -> CeleryTaskDispatcher:
+    """Get Celery task dispatcher.
+
+    Returns a cached CeleryTaskDispatcher instance that uses
+    the global celery_app for task dispatching.
+    """
+    import logging
+
+    return CeleryTaskDispatcher(
+        celery_app=celery_app,
+        logger=logging.getLogger("celery.dispatcher"),
+    )
+
+
+TaskDispatcher = Annotated[CeleryTaskDispatcher, Depends(get_task_dispatcher)]
 
 
 # =============================================================================

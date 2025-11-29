@@ -68,6 +68,27 @@ class ScraperSettings(BaseSettings):
     )
 
 
+class CelerySettings(BaseSettings):
+    """Celery task queue settings."""
+
+    model_config = SettingsConfigDict(
+        env_prefix="CELERY_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    broker_url: str = Field(default="redis://localhost:6379/0")
+    result_backend: str = Field(default="redis://localhost:6379/0")
+    task_serializer: str = Field(default="json")
+    result_serializer: str = Field(default="json")
+    accept_content: list[str] = Field(default=["json"])
+    timezone: str = Field(default="UTC")
+    task_track_started: bool = Field(default=True)
+    task_time_limit: int = Field(default=300)  # 5 minutes
+    task_soft_time_limit: int = Field(default=270)  # 4.5 minutes
+
+
 class AppSettings(BaseSettings):
     """Main application settings."""
 
@@ -88,6 +109,7 @@ class AppSettings(BaseSettings):
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
     meta_ads: MetaAdsSettings = Field(default_factory=MetaAdsSettings)
     scraper: ScraperSettings = Field(default_factory=ScraperSettings)
+    celery: CelerySettings = Field(default_factory=CelerySettings)
 
 
 @lru_cache
