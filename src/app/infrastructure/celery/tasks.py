@@ -353,3 +353,84 @@ def count_sitemap_products_task(
             exc_info=True,
         )
         raise self.retry(exc=exc)
+
+
+@celery_app.task(
+    bind=True,
+    base=AsyncTask,
+    name="tasks.compute_shop_score",
+    max_retries=3,
+    default_retry_delay=60,
+)
+def compute_shop_score_task(
+    self: AsyncTask,
+    page_id: str,
+) -> dict[str, Any]:
+    """Compute the score for a shop/page.
+
+    Executes ComputeShopScoreUseCase to:
+    1. Gather data about the page (ads, Shopify profile, products)
+    2. Calculate weighted score components:
+       - Ads Activity Score (40%)
+       - Shopify Score (30%)
+       - Creative Quality Score (20%)
+       - Catalog Score (10%)
+    3. Save the computed score to the database
+
+    Args:
+        page_id: The page identifier to score.
+
+    Returns:
+        Dict with scoring results including overall score and components.
+    """
+    configure_logging(level="INFO")
+
+    logger.info(
+        "Starting shop score computation task",
+        extra={
+            "page_id": page_id,
+            "task_id": self.request.id,
+        },
+    )
+
+    async def _execute() -> dict[str, Any]:
+        container = get_container()
+        async with container.execution_context() as (db_session, _http_session):
+            use_case = await container.get_compute_shop_score_use_case(
+                db_session=db_session,
+            )
+
+            result = await use_case.execute(page_id=page_id)
+
+            return {
+                "page_id": result.page_id,
+                "status": "completed",
+                "score": result.score,
+                "ads_activity_score": result.ads_activity_score,
+                "shopify_score": result.shopify_score,
+                "creative_quality_score": result.creative_quality_score,
+                "catalog_score": result.catalog_score,
+                "tier": result.tier,
+            }
+
+    try:
+        result = self.run_async(_execute())
+        logger.info(
+            "Shop score computation completed",
+            extra={
+                "page_id": page_id,
+                "result": result,
+            },
+        )
+        return result
+
+    except Exception as exc:
+        logger.error(
+            "Shop score computation failed",
+            extra={
+                "page_id": page_id,
+                "error": str(exc),
+            },
+            exc_info=True,
+        )
+        raise self.retry(exc=exc)

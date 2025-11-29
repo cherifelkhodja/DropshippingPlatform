@@ -98,6 +98,33 @@ class ShopScore:
         """
         return self.components.get(name, default)
 
+    @property
+    def tier(self) -> str:
+        """Get the tier classification based on score.
+
+        Tiers are based on score ranges:
+        - XXL: >= 85
+        - XL: >= 70
+        - L: >= 55
+        - M: >= 40
+        - S: >= 25
+        - XS: < 25
+
+        Returns:
+            The tier as a string (XS, S, M, L, XL, XXL).
+        """
+        if self.score >= 85.0:
+            return "XXL"
+        elif self.score >= 70.0:
+            return "XL"
+        elif self.score >= 55.0:
+            return "L"
+        elif self.score >= 40.0:
+            return "M"
+        elif self.score >= 25.0:
+            return "S"
+        return "XS"
+
     def __eq__(self, other: object) -> bool:
         """Check equality based on identity (id)."""
         if isinstance(other, ShopScore):

@@ -9,7 +9,7 @@ from datetime import datetime
 
 from fastapi.testclient import TestClient
 
-from src.app.core.domain.entities import Page, Scan, ScanType, ScanStatus, ScanResult
+from src.app.core.domain.entities import Page, Scan, ScanType, ScanStatus, ScanResult, ShopScore
 from src.app.core.domain.value_objects import Url, Country, ScanId, PageState
 from src.app.core.domain.errors import (
     MetaAdsRateLimitError,
@@ -526,3 +526,236 @@ class TestExceptionHandlers:
             assert response.status_code == 400
             data = response.json()
             assert "Invalid" in data["message"]
+
+
+class TestScoringEndpoints:
+    """Tests for /api/v1/pages scoring endpoints."""
+
+    @pytest.fixture
+    def mock_page(self) -> Page:
+        """Create a mock page for testing."""
+        return Page(
+            id="page-123",
+            url=Url("https://example-store.com"),
+            domain="example-store.com",
+            state=PageState.initial(),
+            country=Country("US"),
+            is_shopify=True,
+            active_ads_count=25,
+            total_ads_count=50,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
+        )
+
+    @pytest.fixture
+    def mock_score(self) -> ShopScore:
+        """Create a mock shop score for testing."""
+        return ShopScore(
+            id="score-123",
+            page_id="page-123",
+            score=72.5,  # Tier "XL" (>= 70, < 85)
+            components={
+                "ads_activity": 85.0,
+                "shopify": 70.0,
+                "creative_quality": 60.0,
+                "catalog": 55.0,
+            },
+            created_at=datetime.utcnow(),
+        )
+
+    def test_get_page_score_success(
+        self, mock_page: Page, mock_score: ShopScore, mock_database
+    ) -> None:
+        """Get page score returns score details when found."""
+        mock_page_repo = AsyncMock()
+        mock_page_repo.get.return_value = mock_page
+
+        mock_scoring_repo = AsyncMock()
+        mock_scoring_repo.get_latest_by_page_id.return_value = mock_score
+
+        with patch(
+            "src.app.api.dependencies.PostgresPageRepository",
+            return_value=mock_page_repo,
+        ), patch(
+            "src.app.api.dependencies.PostgresScoringRepository",
+            return_value=mock_scoring_repo,
+        ):
+            from src.app.main import create_app
+
+            app = create_app()
+            client = TestClient(app)
+
+            response = client.get("/api/v1/pages/page-123/score")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["page_id"] == "page-123"
+            assert data["score"] == 72.5
+            assert data["tier"] == "XL"  # 72.5 >= 70
+            assert data["components"]["ads_activity"] == 85.0
+            assert data["components"]["shopify"] == 70.0
+            assert data["components"]["creative_quality"] == 60.0
+            assert data["components"]["catalog"] == 55.0
+
+    def test_get_page_score_page_not_found(self, mock_database) -> None:
+        """Get page score returns 404 when page doesn't exist."""
+        mock_page_repo = AsyncMock()
+        mock_page_repo.get.return_value = None
+
+        mock_scoring_repo = AsyncMock()
+
+        with patch(
+            "src.app.api.dependencies.PostgresPageRepository",
+            return_value=mock_page_repo,
+        ), patch(
+            "src.app.api.dependencies.PostgresScoringRepository",
+            return_value=mock_scoring_repo,
+        ):
+            from src.app.main import create_app
+
+            app = create_app()
+            client = TestClient(app)
+
+            response = client.get("/api/v1/pages/nonexistent/score")
+
+            assert response.status_code == 404
+            data = response.json()
+            assert data["error"] == "EntityNotFound"
+
+    def test_get_page_score_score_not_found(
+        self, mock_page: Page, mock_database
+    ) -> None:
+        """Get page score returns 404 when score doesn't exist."""
+        mock_page_repo = AsyncMock()
+        mock_page_repo.get.return_value = mock_page
+
+        mock_scoring_repo = AsyncMock()
+        mock_scoring_repo.get_latest_by_page_id.return_value = None
+
+        with patch(
+            "src.app.api.dependencies.PostgresPageRepository",
+            return_value=mock_page_repo,
+        ), patch(
+            "src.app.api.dependencies.PostgresScoringRepository",
+            return_value=mock_scoring_repo,
+        ):
+            from src.app.main import create_app
+
+            app = create_app()
+            client = TestClient(app)
+
+            response = client.get("/api/v1/pages/page-123/score")
+
+            assert response.status_code == 404
+            data = response.json()
+            assert data["error"] == "EntityNotFound"
+
+    def test_get_top_shops_empty(self, mock_database) -> None:
+        """Get top shops returns empty list when no scores exist."""
+        mock_page_repo = AsyncMock()
+        mock_scoring_repo = AsyncMock()
+        mock_scoring_repo.list_top.return_value = []
+
+        with patch(
+            "src.app.api.dependencies.PostgresPageRepository",
+            return_value=mock_page_repo,
+        ), patch(
+            "src.app.api.dependencies.PostgresScoringRepository",
+            return_value=mock_scoring_repo,
+        ):
+            from src.app.main import create_app
+
+            app = create_app()
+            client = TestClient(app)
+
+            response = client.get("/api/v1/pages/top")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["items"] == []
+            assert data["total"] == 0
+
+    def test_get_top_shops_with_data(
+        self, mock_page: Page, mock_score: ShopScore, mock_database
+    ) -> None:
+        """Get top shops returns ranked list when scores exist."""
+        mock_page_repo = AsyncMock()
+        mock_page_repo.get.return_value = mock_page
+
+        mock_scoring_repo = AsyncMock()
+        mock_scoring_repo.list_top.return_value = [mock_score]
+
+        with patch(
+            "src.app.api.dependencies.PostgresPageRepository",
+            return_value=mock_page_repo,
+        ), patch(
+            "src.app.api.dependencies.PostgresScoringRepository",
+            return_value=mock_scoring_repo,
+        ):
+            from src.app.main import create_app
+
+            app = create_app()
+            client = TestClient(app)
+
+            response = client.get("/api/v1/pages/top?limit=10")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert len(data["items"]) == 1
+            assert data["items"][0]["rank"] == 1
+            assert data["items"][0]["page_id"] == "page-123"
+            assert data["items"][0]["domain"] == "example-store.com"
+            assert data["items"][0]["score"] == 72.5
+            assert data["items"][0]["tier"] == "XL"  # 72.5 >= 70
+
+    def test_recompute_page_score_success(
+        self, mock_page: Page, mock_database
+    ) -> None:
+        """Recompute page score dispatches task and returns task ID."""
+        mock_page_repo = AsyncMock()
+        mock_page_repo.get.return_value = mock_page
+
+        mock_task = MagicMock()
+        mock_task.id = "task-abc123"
+
+        with patch(
+            "src.app.api.dependencies.PostgresPageRepository",
+            return_value=mock_page_repo,
+        ), patch(
+            "src.app.api.routers.pages.compute_shop_score_task"
+        ) as mock_task_func:
+            mock_task_func.delay.return_value = mock_task
+
+            from src.app.main import create_app
+
+            app = create_app()
+            client = TestClient(app)
+
+            response = client.post("/api/v1/pages/page-123/score/recompute")
+
+            assert response.status_code == 200
+            data = response.json()
+            assert data["page_id"] == "page-123"
+            assert data["task_id"] == "task-abc123"
+            assert data["status"] == "dispatched"
+            mock_task_func.delay.assert_called_once_with(page_id="page-123")
+
+    def test_recompute_page_score_page_not_found(self, mock_database) -> None:
+        """Recompute page score returns 404 when page doesn't exist."""
+        mock_page_repo = AsyncMock()
+        mock_page_repo.get.return_value = None
+
+        with patch(
+            "src.app.api.dependencies.PostgresPageRepository",
+            return_value=mock_page_repo,
+        ):
+            from src.app.main import create_app
+
+            app = create_app()
+            client = TestClient(app)
+
+            response = client.post("/api/v1/pages/nonexistent/score/recompute")
+
+            assert response.status_code == 404
+            data = response.json()
+            assert data["error"] == "EntityNotFound"

@@ -32,6 +32,9 @@ from src.app.adapters.outbound.repositories.page_repository import (
 from src.app.adapters.outbound.repositories.scan_repository import (
     PostgresScanRepository,
 )
+from src.app.adapters.outbound.repositories.scoring_repository import (
+    PostgresScoringRepository,
+)
 from src.app.adapters.outbound.scraper.html_scraper import HtmlScraperClient
 from src.app.adapters.outbound.sitemap.sitemap_client import SitemapClient
 from src.app.adapters.outbound.tasks.celery_task_dispatcher import CeleryTaskDispatcher
@@ -40,6 +43,7 @@ from src.app.core.usecases.analyse_website import AnalyseWebsiteUseCase
 from src.app.core.usecases.compute_page_active_ads_count import (
     ComputePageActiveAdsCountUseCase,
 )
+from src.app.core.usecases.compute_shop_score import ComputeShopScoreUseCase
 from src.app.core.usecases.extract_product_count import ExtractProductCountUseCase
 from src.app.core.usecases.search_ads_by_keyword import SearchAdsByKeywordUseCase
 from src.app.infrastructure.celery.celery_app import celery_app
@@ -175,6 +179,11 @@ def get_keyword_run_repository(session: DbSession) -> PostgresKeywordRunReposito
     return PostgresKeywordRunRepository(session)
 
 
+def get_scoring_repository(session: DbSession) -> PostgresScoringRepository:
+    """Get scoring repository."""
+    return PostgresScoringRepository(session)
+
+
 # Type aliases
 PageRepo = Annotated[PostgresPageRepository, Depends(get_page_repository)]
 AdsRepo = Annotated[PostgresAdsRepository, Depends(get_ads_repository)]
@@ -182,6 +191,7 @@ ScanRepo = Annotated[PostgresScanRepository, Depends(get_scan_repository)]
 KeywordRunRepo = Annotated[
     PostgresKeywordRunRepository, Depends(get_keyword_run_repository)
 ]
+ScoringRepo = Annotated[PostgresScoringRepository, Depends(get_scoring_repository)]
 
 
 # =============================================================================
@@ -362,6 +372,23 @@ def get_extract_product_count_use_case(
     )
 
 
+def get_compute_shop_score_use_case(
+    page_repo: PageRepo,
+    ads_repo: AdsRepo,
+    scoring_repo: ScoringRepo,
+) -> ComputeShopScoreUseCase:
+    """Get ComputeShopScore use case.
+
+    Uses injected repository dependencies for cleaner composition.
+    """
+    return ComputeShopScoreUseCase(
+        page_repository=page_repo,
+        ads_repository=ads_repo,
+        scoring_repository=scoring_repo,
+        logger=get_logger("usecase.compute_shop_score"),
+    )
+
+
 # Type aliases for use cases
 SearchAdsUseCase = Annotated[
     SearchAdsByKeywordUseCase,
@@ -382,4 +409,8 @@ AnalysePageDeepUC = Annotated[
 ExtractProductCountUC = Annotated[
     ExtractProductCountUseCase,
     Depends(get_extract_product_count_use_case),
+]
+ComputeShopScoreUC = Annotated[
+    ComputeShopScoreUseCase,
+    Depends(get_compute_shop_score_use_case),
 ]

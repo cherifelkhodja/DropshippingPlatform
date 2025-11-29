@@ -13,6 +13,14 @@ from .scans import (
     ScanResponse,
     ScanResultResponse,
 )
+from .scoring import (
+    ShopScoreResponse,
+    ScoreComponentsResponse,
+    TopShopsFilters,
+    TopShopEntry,
+    TopShopsResponse,
+    RecomputeScoreResponse,
+)
 from .common import (
     HealthResponse,
     ErrorResponse,
@@ -27,6 +35,12 @@ __all__ = [
     "PageFilters",
     "ScanResponse",
     "ScanResultResponse",
+    "ShopScoreResponse",
+    "ScoreComponentsResponse",
+    "TopShopsFilters",
+    "TopShopEntry",
+    "TopShopsResponse",
+    "RecomputeScoreResponse",
     "HealthResponse",
     "ErrorResponse",
     "PaginatedResponse",

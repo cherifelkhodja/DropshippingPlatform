@@ -47,6 +47,36 @@ class ComputeShopScoreResult:
     global_score: float
     components: dict[str, float]
 
+    @property
+    def score(self) -> float:
+        """Alias for global_score."""
+        return self.global_score
+
+    @property
+    def tier(self) -> str:
+        """Get the tier from the shop score."""
+        return self.shop_score.tier
+
+    @property
+    def ads_activity_score(self) -> float:
+        """Get the ads activity component score."""
+        return self.components.get("ads_activity", 0.0)
+
+    @property
+    def shopify_score(self) -> float:
+        """Get the shopify component score."""
+        return self.components.get("shopify", 0.0)
+
+    @property
+    def creative_quality_score(self) -> float:
+        """Get the creative quality component score."""
+        return self.components.get("creative_quality", 0.0)
+
+    @property
+    def catalog_score(self) -> float:
+        """Get the catalog component score."""
+        return self.components.get("catalog", 0.0)
+
 
 def _clamp(value: float, min_val: float = 0.0, max_val: float = 100.0) -> float:
     """Clamp a value between min and max."""

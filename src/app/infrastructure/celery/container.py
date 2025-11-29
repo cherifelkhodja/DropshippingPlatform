@@ -25,11 +25,15 @@ from src.app.adapters.outbound.repositories.page_repository import (
 from src.app.adapters.outbound.repositories.scan_repository import (
     PostgresScanRepository,
 )
+from src.app.adapters.outbound.repositories.scoring_repository import (
+    PostgresScoringRepository,
+)
 from src.app.adapters.outbound.scraper.html_scraper import HtmlScraperClient
 from src.app.adapters.outbound.sitemap.sitemap_client import SitemapClient
 from src.app.adapters.outbound.tasks.celery_task_dispatcher import CeleryTaskDispatcher
 from src.app.core.usecases.analyse_page_deep import AnalysePageDeepUseCase
 from src.app.core.usecases.analyse_website import AnalyseWebsiteUseCase
+from src.app.core.usecases.compute_shop_score import ComputeShopScoreUseCase
 from src.app.core.usecases.extract_product_count import ExtractProductCountUseCase
 from src.app.infrastructure.logging.logger_adapter import StandardLoggingAdapter
 from src.app.infrastructure.settings.runtime_settings import get_settings
@@ -262,6 +266,25 @@ class WorkerContainer:
             page_repository=PostgresPageRepository(db_session),
             sitemap_port=self._get_sitemap_client(http_session),
             logger=self._get_logger("extract_product_count"),
+        )
+
+    async def get_compute_shop_score_use_case(
+        self,
+        db_session: AsyncSession,
+    ) -> ComputeShopScoreUseCase:
+        """Create the ComputeShopScore use case with all dependencies.
+
+        Args:
+            db_session: Database session for repositories.
+
+        Returns:
+            ComputeShopScoreUseCase: Configured use case instance.
+        """
+        return ComputeShopScoreUseCase(
+            page_repository=PostgresPageRepository(db_session),
+            ads_repository=PostgresAdsRepository(db_session),
+            scoring_repository=PostgresScoringRepository(db_session),
+            logger=self._get_logger("compute_shop_score"),
         )
 
     @asynccontextmanager
