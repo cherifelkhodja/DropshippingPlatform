@@ -1,7 +1,7 @@
 # PROJECT MEMORY — Dropshipping Platform
 
 > **Purpose**: Persistent memory file for AI assistants working on this project.
-> **Last Updated**: Sprint 2.1 (v0.2.1 released)
+> **Last Updated**: Sprint 3.4 (Scoring Engine Complete)
 > **Maintainer**: Claude Code / Tech Lead
 
 ---
@@ -11,9 +11,9 @@
 | Key | Value |
 |-----|-------|
 | **Project Name** | Dropshipping Platform |
-| **Current Version** | v0.2.1 |
-| **Current Sprint** | Sprint 2.1 — Hardening & Cleanup (completed) |
-| **Last Action** | Tagged v0.2.1, CI fixes (mypy, coverage, httpx) |
+| **Current Version** | v0.3.0-dev |
+| **Current Sprint** | Sprint 3.4 — Scoring Engine Hardening (completed) |
+| **Last Action** | Scoring module decoupled from Postgres/Celery, pagination fixed, tests added |
 | **Architecture** | Hexagonal (Ports & Adapters) |
 | **Python Version** | 3.11+ |
 | **Package Manager** | uv (modern pyproject.toml) |
@@ -398,18 +398,91 @@ DropshippingPlatform/
 - **Testing**: 200+ tests passing, ~90% core coverage
 - **Release**: Tagged as `v0.2.1`
 
+### Sprint 3 — Scoring Engine (COMPLETED → v0.3.0-dev)
+
+#### Sprint 3.1 — ShopScore Entity & ScoringRepository
+- **ShopScore Entity** (`core/domain/entities/shop_score.py`)
+  - Score value (0-100)
+  - Tier property (Bronze/Silver/Gold/Platinum)
+  - Components dict (ads_activity, shopify, creative_quality, catalog)
+  - `create()` factory with validation
+- **ScoringRepository Port** (`core/ports/repository_port.py`)
+  - `save(score: ShopScore)` method
+  - `get_latest_by_page_id(page_id)` method
+  - `list_top(limit, offset)` method
+  - `count()` method added in Sprint 3.4
+- **ShopScoreModel** (`infrastructure/db/models/shop_score_model.py`)
+  - UUID primary key, page_id FK, score float
+  - JSONB components, created_at timestamp
+  - Index on page_id for queries
+- **shop_score_mapper** (`infrastructure/db/mappers/shop_score_mapper.py`)
+  - Bidirectional mapping (domain ↔ ORM)
+- **Alembic migration** for shop_scores table
+
+#### Sprint 3.2 — ComputeShopScoreUseCase
+- **Use Case** (`core/usecases/compute_shop_score.py`)
+  - Calculates weighted global score:
+    - Ads Activity (40%): ads count, country/platform diversity
+    - Shopify Score (30%): store characteristics, currency
+    - Creative Quality (20%): CTA presence, emojis, discount indicators
+    - Catalog Score (10%): product count normalized to 200
+  - Returns `ComputeShopScoreResult` with score, tier, components
+  - Persists ShopScore via ScoringRepository
+- **Helper functions**:
+  - `_calc_ads_activity_score(ads)` — normalized to 50 ads
+  - `_calc_shopify_score(page)` — boolean indicators
+  - `_calc_creative_quality_score(ads)` — text analysis
+  - `_calc_catalog_score(page)` — returns tuple with warning
+- **31 unit tests** covering all scoring scenarios
+
+#### Sprint 3.3 — Infrastructure & API Integration
+- **PostgresScoringRepository** (`adapters/outbound/repositories/scoring_repository.py`)
+  - SQLAlchemy async implementation
+  - `save()`, `get_latest_by_page_id()`, `list_top()`, `count()`
+- **Celery Task** (`infrastructure/celery/tasks.py`)
+  - `tasks.compute_shop_score` task calling use case
+  - WorkerContainer integration
+- **API Endpoints** (`api/routers/pages.py`)
+  - `GET /api/v1/pages/top` — leaderboard with pagination
+  - `GET /api/v1/pages/{page_id}/score` — latest score
+  - `POST /api/v1/pages/{page_id}/score/recompute` — trigger async
+- **Pydantic Schemas** (`api/schemas/pages.py`)
+  - `ShopScoreResponse`, `ShopLeaderboardResponse`
+  - `RecomputeScoreResponse` with task_id
+
+#### Sprint 3.4 — Hardening (Final)
+- **Decoupling API from Postgres/Celery**:
+  - Added `dispatch_compute_shop_score()` to TaskDispatcherPort
+  - Implemented in CeleryTaskDispatcher
+  - Changed dependencies.py type aliases to use Protocol interfaces
+  - API uses TaskDispatcher instead of direct Celery import
+- **Pagination Fix**:
+  - Added `count()` method to ScoringRepository Protocol
+  - Implemented with `SELECT COUNT(*)` in Postgres adapter
+  - `GET /pages/top` uses count() instead of list_top(limit=10000)
+- **Robustness for catalog_score**:
+  - `_calc_catalog_score()` returns `tuple[float, str | None]`
+  - Handles None/invalid product_count gracefully
+  - Logs warning when catalog score cannot be calculated
+- **Tests**:
+  - 6 tier tests for ShopScore.tier property
+  - Updated API tests to mock TaskDispatcher
+  - Fixed CI: conftest.py supports both DATABASE_URL and TEST_DATABASE_URL
+- **Testing**: 231+ tests passing
+
 ---
 
-## 5. NEXT STEPS (TODO — Sprint 3 Draft)
+## 5. NEXT STEPS (TODO — Sprint 4 Draft)
 
 | Priority | Task | Description |
 |----------|------|-------------|
 | **P0** | Admin Dashboard | Front-end minimal ou API-driven dashboard |
-| **P1** | Filtres avancés | Scoring des shops, filtres multicritères |
 | **P1** | Observabilité | Prometheus metrics, tracing OpenTelemetry |
+| **P1** | Scheduled Scoring | Periodic batch re-scoring of all pages |
 | **P2** | E2E Tests | Full scenario tests end-to-end |
+| **P2** | Score History | Historical score tracking and trends |
 
-**Note**: Admin API security (API keys) was completed in Sprint 2.1.
+**Note**: Scoring engine completed in Sprint 3. Admin API security completed in Sprint 2.1.
 
 ---
 
