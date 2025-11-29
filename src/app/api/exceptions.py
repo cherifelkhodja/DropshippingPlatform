@@ -257,29 +257,33 @@ def register_exception_handlers(app: FastAPI) -> None:
     - DomainError (validation) → 400 Bad Request
     """
     # Specific errors first (more specific to less specific)
+    # Note: type: ignore[arg-type] is used because Starlette's add_exception_handler
+    # expects Callable[[Request, Exception], ...] but we use specific exception types.
+    # This is a known typing limitation; runtime behavior is correct.
+
     # 404 Not Found
-    app.add_exception_handler(EntityNotFoundError, entity_not_found_handler)
-    app.add_exception_handler(SitemapNotFoundError, sitemap_not_found_handler)
+    app.add_exception_handler(EntityNotFoundError, entity_not_found_handler)  # type: ignore[arg-type]
+    app.add_exception_handler(SitemapNotFoundError, sitemap_not_found_handler)  # type: ignore[arg-type]
 
     # 401/429 Meta Ads errors
-    app.add_exception_handler(MetaAdsRateLimitError, meta_ads_rate_limit_handler)
-    app.add_exception_handler(MetaAdsAuthenticationError, meta_ads_auth_handler)
-    app.add_exception_handler(MetaAdsApiError, meta_ads_error_handler)
+    app.add_exception_handler(MetaAdsRateLimitError, meta_ads_rate_limit_handler)  # type: ignore[arg-type]
+    app.add_exception_handler(MetaAdsAuthenticationError, meta_ads_auth_handler)  # type: ignore[arg-type]
+    app.add_exception_handler(MetaAdsApiError, meta_ads_error_handler)  # type: ignore[arg-type]
 
     # Scraping errors (403, 504, 502)
-    app.add_exception_handler(ScrapingBlockedError, scraping_blocked_handler)
-    app.add_exception_handler(ScrapingTimeoutError, scraping_timeout_handler)
-    app.add_exception_handler(ScrapingError, scraping_error_handler)
+    app.add_exception_handler(ScrapingBlockedError, scraping_blocked_handler)  # type: ignore[arg-type]
+    app.add_exception_handler(ScrapingTimeoutError, scraping_timeout_handler)  # type: ignore[arg-type]
+    app.add_exception_handler(ScrapingError, scraping_error_handler)  # type: ignore[arg-type]
 
     # Sitemap parsing → 422
-    app.add_exception_handler(SitemapParsingError, sitemap_parsing_handler)
+    app.add_exception_handler(SitemapParsingError, sitemap_parsing_handler)  # type: ignore[arg-type]
 
     # Infrastructure errors
-    app.add_exception_handler(RepositoryError, repository_error_handler)
-    app.add_exception_handler(TaskDispatchError, task_dispatch_error_handler)
+    app.add_exception_handler(RepositoryError, repository_error_handler)  # type: ignore[arg-type]
+    app.add_exception_handler(TaskDispatchError, task_dispatch_error_handler)  # type: ignore[arg-type]
 
     # Domain validation errors (400 Bad Request)
-    validation_errors = [
+    validation_errors: list[type[DomainError]] = [
         InvalidUrlError,
         InvalidCountryError,
         InvalidLanguageError,
@@ -291,7 +295,7 @@ def register_exception_handlers(app: FastAPI) -> None:
         InvalidPaymentMethodError,
     ]
     for error_class in validation_errors:
-        app.add_exception_handler(error_class, domain_validation_error_handler)
+        app.add_exception_handler(error_class, domain_validation_error_handler)  # type: ignore[arg-type]
 
 
 def create_request_logging_middleware(
