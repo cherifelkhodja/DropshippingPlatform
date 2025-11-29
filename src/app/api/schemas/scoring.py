@@ -119,3 +119,104 @@ class RecomputeScoreResponse(BaseModel):
             ]
         }
     }
+
+
+# =============================================================================
+# Ranking Schemas (Sprint 4.2)
+# =============================================================================
+
+
+class RankedShopEntry(BaseModel):
+    """Single entry in ranked shops list."""
+
+    page_id: str = Field(description="Page identifier")
+    score: float = Field(ge=0, le=100, description="Overall score")
+    tier: str = Field(description="Score tier (XS, S, M, L, XL, XXL)")
+    url: str | None = Field(default=None, description="Shop URL")
+    country: str | None = Field(default=None, description="Country code (ISO 3166-1 alpha-2)")
+    name: str | None = Field(default=None, description="Shop name or domain")
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "page_id": "page-12345",
+                    "score": 85.5,
+                    "tier": "XXL",
+                    "url": "https://example-store.com",
+                    "country": "FR",
+                    "name": "Example Store",
+                }
+            ]
+        }
+    }
+
+
+class RankedShopsResponse(BaseModel):
+    """Ranked shops list response with pagination."""
+
+    items: list[RankedShopEntry] = Field(description="List of ranked shops")
+    total: int = Field(description="Total number of shops matching filters")
+    limit: int = Field(description="Requested limit")
+    offset: int = Field(description="Requested offset")
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "items": [
+                        {
+                            "page_id": "page-001",
+                            "score": 92.0,
+                            "tier": "XXL",
+                            "url": "https://top-store.com",
+                            "country": "US",
+                            "name": "Top Store",
+                        },
+                        {
+                            "page_id": "page-002",
+                            "score": 78.5,
+                            "tier": "XL",
+                            "url": "https://great-shop.com",
+                            "country": "FR",
+                            "name": "Great Shop",
+                        },
+                    ],
+                    "total": 150,
+                    "limit": 50,
+                    "offset": 0,
+                }
+            ]
+        }
+    }
+
+
+def ranked_result_to_response(
+    result: "RankedShopsResult",
+) -> RankedShopsResponse:
+    """Convert domain RankedShopsResult to API response.
+
+    Args:
+        result: The domain result from GetRankedShopsUseCase.
+
+    Returns:
+        API response model for ranked shops.
+    """
+    from src.app.core.domain.entities.ranked_shop import RankedShopsResult
+
+    return RankedShopsResponse(
+        items=[
+            RankedShopEntry(
+                page_id=item.page_id,
+                score=item.score,
+                tier=item.tier,
+                url=item.url,
+                country=item.country,
+                name=item.name,
+            )
+            for item in result.items
+        ],
+        total=result.total,
+        limit=result.limit,
+        offset=result.offset,
+    )

@@ -210,6 +210,8 @@ class FakeScoringRepository:
 
     def __init__(self) -> None:
         self.scores: list[ShopScore] = []
+        # For ranked queries: store page info (page_id -> (url, country, name))
+        self.page_info: dict[str, tuple[str | None, str | None, str | None]] = {}
 
     async def save(self, score: ShopScore) -> None:
         self.scores.append(score)
@@ -223,6 +225,105 @@ class FakeScoringRepository:
     async def list_top(self, limit: int = 50, offset: int = 0) -> list[ShopScore]:
         sorted_scores = sorted(self.scores, key=lambda s: s.score, reverse=True)
         return sorted_scores[offset : offset + limit]
+
+    async def count(self) -> int:
+        return len(self.scores)
+
+    async def list_ranked(
+        self,
+        criteria: "RankingCriteria",
+    ) -> list["RankedShop"]:
+        """Return ranked shops matching criteria."""
+        from src.app.core.domain.entities.ranked_shop import RankedShop
+        from src.app.core.domain.value_objects.ranking import TIER_SCORE_RANGES
+
+        # Filter scores based on criteria
+        filtered = self.scores.copy()
+
+        if criteria.min_score is not None:
+            filtered = [s for s in filtered if s.score >= criteria.min_score]
+
+        if criteria.tier is not None:
+            score_range = TIER_SCORE_RANGES.get(criteria.tier)
+            if score_range:
+                min_score, max_score = score_range
+                if criteria.tier == "XXL":
+                    filtered = [s for s in filtered if s.score >= min_score]
+                else:
+                    filtered = [
+                        s for s in filtered if min_score <= s.score < max_score
+                    ]
+
+        if criteria.country is not None:
+            filtered = [
+                s for s in filtered
+                if s.page_id in self.page_info
+                and self.page_info[s.page_id][1] == criteria.country
+            ]
+
+        # Sort by score DESC, then created_at DESC
+        sorted_scores = sorted(
+            filtered,
+            key=lambda s: (s.score, s.created_at),
+            reverse=True,
+        )
+
+        # Apply pagination
+        paginated = sorted_scores[criteria.offset : criteria.offset + criteria.limit]
+
+        # Convert to RankedShop
+        result = []
+        for score in paginated:
+            info = self.page_info.get(score.page_id, (None, None, None))
+            result.append(
+                RankedShop(
+                    page_id=score.page_id,
+                    score=score.score,
+                    tier=score.tier,
+                    url=info[0],
+                    country=info[1],
+                    name=info[2],
+                )
+            )
+        return result
+
+    async def count_ranked(
+        self,
+        criteria: "RankingCriteria",
+    ) -> int:
+        """Count shops matching criteria (ignores limit/offset)."""
+        from src.app.core.domain.value_objects.ranking import TIER_SCORE_RANGES
+
+        filtered = self.scores.copy()
+
+        if criteria.min_score is not None:
+            filtered = [s for s in filtered if s.score >= criteria.min_score]
+
+        if criteria.tier is not None:
+            score_range = TIER_SCORE_RANGES.get(criteria.tier)
+            if score_range:
+                min_score, max_score = score_range
+                if criteria.tier == "XXL":
+                    filtered = [s for s in filtered if s.score >= min_score]
+                else:
+                    filtered = [
+                        s for s in filtered if min_score <= s.score < max_score
+                    ]
+
+        if criteria.country is not None:
+            filtered = [
+                s for s in filtered
+                if s.page_id in self.page_info
+                and self.page_info[s.page_id][1] == criteria.country
+            ]
+
+        return len(filtered)
+
+    def set_page_info(
+        self, page_id: str, url: str | None, country: str | None, name: str | None
+    ) -> None:
+        """Helper to set page info for testing ranked queries."""
+        self.page_info[page_id] = (url, country, name)
 
 
 class FakeTaskDispatcher:
