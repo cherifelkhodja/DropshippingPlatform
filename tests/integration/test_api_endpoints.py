@@ -655,6 +655,7 @@ class TestScoringEndpoints:
         mock_page_repo = AsyncMock()
         mock_scoring_repo = AsyncMock()
         mock_scoring_repo.list_top.return_value = []
+        mock_scoring_repo.count.return_value = 0  # Add count mock
 
         with patch(
             "src.app.api.dependencies.PostgresPageRepository",
@@ -684,6 +685,7 @@ class TestScoringEndpoints:
 
         mock_scoring_repo = AsyncMock()
         mock_scoring_repo.list_top.return_value = [mock_score]
+        mock_scoring_repo.count.return_value = 1  # Add count mock
 
         with patch(
             "src.app.api.dependencies.PostgresPageRepository",
@@ -702,6 +704,7 @@ class TestScoringEndpoints:
             assert response.status_code == 200
             data = response.json()
             assert len(data["items"]) == 1
+            assert data["total"] == 1  # Add total assertion
             assert data["items"][0]["rank"] == 1
             assert data["items"][0]["page_id"] == "page-123"
             assert data["items"][0]["domain"] == "example-store.com"
@@ -715,16 +718,20 @@ class TestScoringEndpoints:
         mock_page_repo = AsyncMock()
         mock_page_repo.get.return_value = mock_page
 
-        mock_task = MagicMock()
-        mock_task.id = "task-abc123"
+        # Mock the TaskDispatcher
+        mock_task_dispatcher = AsyncMock()
+        mock_task_dispatcher.dispatch_compute_shop_score.return_value = "task-abc123"
 
         with patch(
             "src.app.api.dependencies.PostgresPageRepository",
             return_value=mock_page_repo,
         ), patch(
-            "src.app.api.routers.pages.compute_shop_score_task"
-        ) as mock_task_func:
-            mock_task_func.delay.return_value = mock_task
+            "src.app.api.dependencies.CeleryTaskDispatcher",
+            return_value=mock_task_dispatcher,
+        ):
+            # Clear lru_cache for get_task_dispatcher
+            from src.app.api.dependencies import get_task_dispatcher
+            get_task_dispatcher.cache_clear()
 
             from src.app.main import create_app
 
@@ -738,7 +745,12 @@ class TestScoringEndpoints:
             assert data["page_id"] == "page-123"
             assert data["task_id"] == "task-abc123"
             assert data["status"] == "dispatched"
-            mock_task_func.delay.assert_called_once_with(page_id="page-123")
+            mock_task_dispatcher.dispatch_compute_shop_score.assert_called_once_with(
+                page_id="page-123"
+            )
+
+            # Clear cache again after test
+            get_task_dispatcher.cache_clear()
 
     def test_recompute_page_score_page_not_found(self, mock_database) -> None:
         """Recompute page score returns 404 when page doesn't exist."""

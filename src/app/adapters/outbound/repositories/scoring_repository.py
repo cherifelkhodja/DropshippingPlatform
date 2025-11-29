@@ -5,7 +5,7 @@ Implements ScoringRepository port with SQLAlchemy async operations.
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -117,4 +117,23 @@ class PostgresScoringRepository:
             raise RepositoryError(
                 operation="list_top_scores",
                 reason=f"Failed to list top scores: {exc}",
+            ) from exc
+
+    async def count(self) -> int:
+        """Count total number of shop scores.
+
+        Returns:
+            The total count of ShopScore entities.
+
+        Raises:
+            RepositoryError: On database errors.
+        """
+        try:
+            stmt = select(func.count()).select_from(ShopScoreModel)
+            result = await self._session.execute(stmt)
+            return result.scalar() or 0
+        except SQLAlchemyError as exc:
+            raise RepositoryError(
+                operation="count_scores",
+                reason=f"Failed to count scores: {exc}",
             ) from exc

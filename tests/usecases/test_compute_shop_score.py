@@ -532,8 +532,9 @@ class TestScoreCalculationFunctions:
             domain="test.com",
             product_count=ProductCount(0),
         )
-        score = _calc_catalog_score(page)
+        score, warning = _calc_catalog_score(page)
         assert score == 0.0
+        assert warning is not None  # Should have warning for 0 products
 
     def test_catalog_score_max(self) -> None:
         """Test catalog score with many products."""
@@ -543,8 +544,9 @@ class TestScoreCalculationFunctions:
             domain="test.com",
             product_count=ProductCount(200),
         )
-        score = _calc_catalog_score(page)
+        score, warning = _calc_catalog_score(page)
         assert score == 100.0
+        assert warning is None  # No warning for valid product count
 
     def test_catalog_score_partial(self) -> None:
         """Test catalog score with partial products."""
@@ -554,5 +556,70 @@ class TestScoreCalculationFunctions:
             domain="test.com",
             product_count=ProductCount(100),
         )
-        score = _calc_catalog_score(page)
+        score, warning = _calc_catalog_score(page)
         assert score == 50.0  # 100/200 * 100
+        assert warning is None  # No warning for valid product count
+
+
+class TestShopScoreTier:
+    """Tests for ShopScore.tier property."""
+
+    def test_tier_xxl(self) -> None:
+        """Test XXL tier for score >= 85."""
+        from src.app.core.domain.entities.shop_score import ShopScore
+
+        score = ShopScore.create(id="1", page_id="p1", score=85.0)
+        assert score.tier == "XXL"
+
+        score = ShopScore.create(id="2", page_id="p1", score=100.0)
+        assert score.tier == "XXL"
+
+    def test_tier_xl(self) -> None:
+        """Test XL tier for score >= 70 and < 85."""
+        from src.app.core.domain.entities.shop_score import ShopScore
+
+        score = ShopScore.create(id="1", page_id="p1", score=70.0)
+        assert score.tier == "XL"
+
+        score = ShopScore.create(id="2", page_id="p1", score=84.9)
+        assert score.tier == "XL"
+
+    def test_tier_l(self) -> None:
+        """Test L tier for score >= 55 and < 70."""
+        from src.app.core.domain.entities.shop_score import ShopScore
+
+        score = ShopScore.create(id="1", page_id="p1", score=55.0)
+        assert score.tier == "L"
+
+        score = ShopScore.create(id="2", page_id="p1", score=69.9)
+        assert score.tier == "L"
+
+    def test_tier_m(self) -> None:
+        """Test M tier for score >= 40 and < 55."""
+        from src.app.core.domain.entities.shop_score import ShopScore
+
+        score = ShopScore.create(id="1", page_id="p1", score=40.0)
+        assert score.tier == "M"
+
+        score = ShopScore.create(id="2", page_id="p1", score=54.9)
+        assert score.tier == "M"
+
+    def test_tier_s(self) -> None:
+        """Test S tier for score >= 25 and < 40."""
+        from src.app.core.domain.entities.shop_score import ShopScore
+
+        score = ShopScore.create(id="1", page_id="p1", score=25.0)
+        assert score.tier == "S"
+
+        score = ShopScore.create(id="2", page_id="p1", score=39.9)
+        assert score.tier == "S"
+
+    def test_tier_xs(self) -> None:
+        """Test XS tier for score < 25."""
+        from src.app.core.domain.entities.shop_score import ShopScore
+
+        score = ShopScore.create(id="1", page_id="p1", score=24.9)
+        assert score.tier == "XS"
+
+        score = ShopScore.create(id="2", page_id="p1", score=0.0)
+        assert score.tier == "XS"

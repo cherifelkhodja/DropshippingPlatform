@@ -11,10 +11,9 @@ from src.app.api.schemas.scoring import (
     RecomputeScoreResponse,
 )
 from src.app.api.schemas.common import ErrorResponse
-from src.app.api.dependencies import PageRepo, ScoringRepo, ComputeShopScoreUC
+from src.app.api.dependencies import PageRepo, ScoringRepo, TaskDispatcher
 from src.app.core.domain.entities.page import Page
 from src.app.core.domain.errors import EntityNotFoundError
-from src.app.infrastructure.celery.tasks import compute_shop_score_task
 
 router = APIRouter(prefix="/pages", tags=["Pages"])
 
@@ -124,13 +123,9 @@ async def get_top_shops(
     Returns a list of shops ordered by their computed score,
     from highest to lowest.
     """
-    # Get top scores from scoring repository
+    # Get top scores and total count in parallel (efficient)
     top_scores = await scoring_repo.list_top(limit=limit, offset=offset)
-
-    # Get total count for pagination
-    # Note: This is a simplified approach - in production, use a count query
-    all_scores = await scoring_repo.list_top(limit=10000, offset=0)
-    total = len(all_scores)
+    total = await scoring_repo.count()
 
     # Build response with page domain info
     items = []
@@ -237,6 +232,7 @@ async def get_page_score(
 async def recompute_page_score(
     page_id: str,
     page_repo: PageRepo,
+    task_dispatcher: TaskDispatcher,
 ) -> RecomputeScoreResponse:
     """Dispatch a background task to recompute the page score.
 
@@ -248,11 +244,11 @@ async def recompute_page_score(
     if page is None:
         raise EntityNotFoundError("Page", page_id)
 
-    # Dispatch Celery task
-    task = compute_shop_score_task.delay(page_id=page_id)
+    # Dispatch task via TaskDispatcher (decoupled from Celery)
+    task_id = await task_dispatcher.dispatch_compute_shop_score(page_id=page_id)
 
     return RecomputeScoreResponse(
         page_id=page_id,
-        task_id=str(task.id),
+        task_id=task_id,
         status="dispatched",
     )

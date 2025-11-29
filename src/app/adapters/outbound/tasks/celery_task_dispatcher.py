@@ -178,3 +178,49 @@ class CeleryTaskDispatcher(TaskDispatcherPort):
                 task_name="sitemap_count",
                 reason=str(exc),
             ) from exc
+
+    async def dispatch_compute_shop_score(
+        self,
+        page_id: str,
+    ) -> str:
+        """Dispatch a shop score computation task.
+
+        Args:
+            page_id: The page to compute score for.
+
+        Returns:
+            The task ID for tracking the dispatched task.
+
+        Raises:
+            TaskDispatchError: If the task cannot be dispatched.
+        """
+        self._logger.info(
+            "Dispatching compute_shop_score task",
+            extra={
+                "page_id": page_id,
+            },
+        )
+
+        try:
+            result: AsyncResult = self._celery.send_task(
+                "tasks.compute_shop_score",
+                args=[page_id],
+            )
+            self._logger.debug(
+                "Task dispatched successfully",
+                extra={"task_id": result.id, "task_name": "compute_shop_score"},
+            )
+            return str(result.id)
+        except Exception as exc:
+            self._logger.error(
+                "Failed to dispatch compute_shop_score task",
+                extra={
+                    "page_id": page_id,
+                    "error": str(exc),
+                },
+                exc_info=True,
+            )
+            raise TaskDispatchError(
+                task_name="compute_shop_score",
+                reason=str(exc),
+            ) from exc

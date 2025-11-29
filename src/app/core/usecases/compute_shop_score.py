@@ -243,26 +243,34 @@ def _calc_creative_quality_score(ads: list[Ad]) -> float:
     return _clamp(score)
 
 
-def _calc_catalog_score(page: Page) -> float:
+def _calc_catalog_score(page: Page) -> tuple[float, str | None]:
     """Calculate the catalog size score component.
 
     Based on product count, normalized to 200 products as reference.
+    Handles edge cases gracefully:
+    - None product_count → returns 0.0 with warning
+    - product_count <= 0 → returns 0.0 with warning
 
     Args:
         page: The Page entity.
 
     Returns:
-        Score from 0 to 100.
+        Tuple of (score from 0 to 100, optional warning message).
     """
-    product_count = page.product_count.value
+    # Safely get product count, handling None case
+    product_count_obj = page.product_count
+    if product_count_obj is None:
+        return 0.0, "product_count is None"
+
+    product_count = product_count_obj.value
 
     if product_count <= 0:
-        return 0.0
+        return 0.0, f"product_count is invalid ({product_count})"
 
     # Normalize to 200 products (capped at 1.0)
     normalized = min(product_count / 200.0, 1.0)
 
-    return _clamp(normalized * 100.0)
+    return _clamp(normalized * 100.0), None
 
 
 class ComputeShopScoreUseCase:
@@ -326,7 +334,7 @@ class ComputeShopScoreUseCase:
             "Retrieved data for scoring",
             page_id=page_id,
             ads_count=len(ads),
-            product_count=page.product_count.value,
+            product_count=page.product_count.value if page.product_count else 0,
             is_shopify=page.is_shopify,
         )
 
@@ -334,7 +342,16 @@ class ComputeShopScoreUseCase:
         ads_activity_score = _calc_ads_activity_score(ads)
         shopify_score = _calc_shopify_score(page)
         creative_quality_score = _calc_creative_quality_score(ads)
-        catalog_score = _calc_catalog_score(page)
+        catalog_score, catalog_warning = _calc_catalog_score(page)
+
+        # Log warning if catalog score couldn't be properly calculated
+        if catalog_warning:
+            self._logger.warning(
+                "Catalog score issue detected",
+                page_id=page_id,
+                warning=catalog_warning,
+                is_shopify=page.is_shopify,
+            )
 
         # 4. Compute weighted global score
         global_score_raw = (

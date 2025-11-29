@@ -38,6 +38,14 @@ from src.app.adapters.outbound.repositories.scoring_repository import (
 from src.app.adapters.outbound.scraper.html_scraper import HtmlScraperClient
 from src.app.adapters.outbound.sitemap.sitemap_client import SitemapClient
 from src.app.adapters.outbound.tasks.celery_task_dispatcher import CeleryTaskDispatcher
+from src.app.core.ports.repository_port import (
+    PageRepository,
+    AdsRepository,
+    ScanRepository,
+    KeywordRunRepository,
+    ScoringRepository,
+)
+from src.app.core.ports.task_dispatcher_port import TaskDispatcherPort
 from src.app.core.usecases.analyse_page_deep import AnalysePageDeepUseCase
 from src.app.core.usecases.analyse_website import AnalyseWebsiteUseCase
 from src.app.core.usecases.compute_page_active_ads_count import (
@@ -184,14 +192,12 @@ def get_scoring_repository(session: DbSession) -> PostgresScoringRepository:
     return PostgresScoringRepository(session)
 
 
-# Type aliases
-PageRepo = Annotated[PostgresPageRepository, Depends(get_page_repository)]
-AdsRepo = Annotated[PostgresAdsRepository, Depends(get_ads_repository)]
-ScanRepo = Annotated[PostgresScanRepository, Depends(get_scan_repository)]
-KeywordRunRepo = Annotated[
-    PostgresKeywordRunRepository, Depends(get_keyword_run_repository)
-]
-ScoringRepo = Annotated[PostgresScoringRepository, Depends(get_scoring_repository)]
+# Type aliases - using Protocol interfaces for decoupling
+PageRepo = Annotated[PageRepository, Depends(get_page_repository)]
+AdsRepo = Annotated[AdsRepository, Depends(get_ads_repository)]
+ScanRepo = Annotated[ScanRepository, Depends(get_scan_repository)]
+KeywordRunRepo = Annotated[KeywordRunRepository, Depends(get_keyword_run_repository)]
+ScoringRepo = Annotated[ScoringRepository, Depends(get_scoring_repository)]
 
 
 # =============================================================================
@@ -278,7 +284,8 @@ def get_task_dispatcher() -> CeleryTaskDispatcher:
     )
 
 
-TaskDispatcher = Annotated[CeleryTaskDispatcher, Depends(get_task_dispatcher)]
+# Type alias using Protocol interface for decoupling
+TaskDispatcher = Annotated[TaskDispatcherPort, Depends(get_task_dispatcher)]
 
 
 # =============================================================================

@@ -236,3 +236,14 @@ class ScoringRepository(Protocol):
             RepositoryError: On database errors.
         """
         ...
+
+    async def count(self) -> int:
+        """Count total number of shop scores.
+
+        Returns:
+            The total count of ShopScore entities.
+
+        Raises:
+            RepositoryError: On database errors.
+        """
+        ...
