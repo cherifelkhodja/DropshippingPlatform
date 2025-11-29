@@ -17,6 +17,7 @@ from src.app.api.routers import (
     keywords_router,
     pages_router,
     scans_router,
+    watchlists_router,
 )
 from src.app.api.exceptions import register_exception_handlers
 from src.app.infrastructure.logging.config import configure_logging
@@ -102,6 +103,7 @@ def create_app() -> FastAPI:
     app.include_router(pages_router, prefix="/api/v1")
     app.include_router(scans_router, prefix="/api/v1")
     app.include_router(admin_router, prefix="/api/v1")
+    app.include_router(watchlists_router, prefix="/api/v1")
 
     return app
 

@@ -26,6 +26,16 @@ from .common import (
     ErrorResponse,
     PaginatedResponse,
 )
+from .watchlists import (
+    WatchlistCreateRequest,
+    WatchlistResponse,
+    WatchlistListResponse,
+    WatchlistItemRequest,
+    WatchlistItemResponse,
+    WatchlistItemListResponse,
+    watchlist_to_response,
+    watchlist_item_to_response,
+)
 
 __all__ = [
     "KeywordSearchRequest",
@@ -44,4 +54,13 @@ __all__ = [
     "HealthResponse",
     "ErrorResponse",
     "PaginatedResponse",
+    # Watchlists
+    "WatchlistCreateRequest",
+    "WatchlistResponse",
+    "WatchlistListResponse",
+    "WatchlistItemRequest",
+    "WatchlistItemResponse",
+    "WatchlistItemListResponse",
+    "watchlist_to_response",
+    "watchlist_item_to_response",
 ]

@@ -16,6 +16,8 @@ from src.app.core.domain import (
     ScanType,
     KeywordRun,
     ShopScore,
+    Watchlist,
+    WatchlistItem,
     Url,
     Country,
     Language,
@@ -378,6 +380,53 @@ class FakeTaskDispatcher:
         )
 
 
+class FakeWatchlistRepository:
+    """Fake watchlist repository for testing."""
+
+    def __init__(self) -> None:
+        self.watchlists: dict[str, Watchlist] = {}
+        self.items: list[WatchlistItem] = []
+
+    async def create_watchlist(self, watchlist: Watchlist) -> Watchlist:
+        self.watchlists[watchlist.id] = watchlist
+        return watchlist
+
+    async def get_watchlist(self, watchlist_id: str) -> Watchlist | None:
+        return self.watchlists.get(watchlist_id)
+
+    async def list_watchlists(
+        self, limit: int = 50, offset: int = 0
+    ) -> list[Watchlist]:
+        sorted_watchlists = sorted(
+            [w for w in self.watchlists.values() if w.is_active],
+            key=lambda w: w.created_at,
+            reverse=True,
+        )
+        return sorted_watchlists[offset : offset + limit]
+
+    async def add_item(self, item: WatchlistItem) -> WatchlistItem:
+        self.items.append(item)
+        return item
+
+    async def remove_item(self, watchlist_id: str, page_id: str) -> None:
+        self.items = [
+            i for i in self.items
+            if not (i.watchlist_id == watchlist_id and i.page_id == page_id)
+        ]
+
+    async def list_items(self, watchlist_id: str) -> list[WatchlistItem]:
+        return sorted(
+            [i for i in self.items if i.watchlist_id == watchlist_id],
+            key=lambda i: i.created_at,
+        )
+
+    async def is_page_in_watchlist(self, watchlist_id: str, page_id: str) -> bool:
+        return any(
+            i.watchlist_id == watchlist_id and i.page_id == page_id
+            for i in self.items
+        )
+
+
 # =============================================================================
 # Port Fixtures
 # =============================================================================
@@ -451,3 +500,9 @@ def mock_sitemap_port() -> AsyncMock:
     mock.get_sitemap_urls.return_value = []
     mock.extract_product_count.return_value = ProductCount(0)
     return mock
+
+
+@pytest.fixture
+def fake_watchlist_repo() -> FakeWatchlistRepository:
+    """Return a fake watchlist repository."""
+    return FakeWatchlistRepository()

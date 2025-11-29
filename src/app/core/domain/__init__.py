@@ -24,6 +24,8 @@ from .entities import (
     KeywordRunStatus,
     KeywordRunResult,
     ShopScore,
+    Watchlist,
+    WatchlistItem,
 )
 
 from .value_objects import (
@@ -90,6 +92,8 @@ __all__ = [
     "KeywordRunStatus",
     "KeywordRunResult",
     "ShopScore",
+    "Watchlist",
+    "WatchlistItem",
     # Value Objects
     "Url",
     "Country",

@@ -35,6 +35,9 @@ from src.app.adapters.outbound.repositories.scan_repository import (
 from src.app.adapters.outbound.repositories.scoring_repository import (
     PostgresScoringRepository,
 )
+from src.app.adapters.outbound.repositories.watchlist_repository import (
+    PostgresWatchlistRepository,
+)
 from src.app.adapters.outbound.scraper.html_scraper import HtmlScraperClient
 from src.app.adapters.outbound.sitemap.sitemap_client import SitemapClient
 from src.app.adapters.outbound.tasks.celery_task_dispatcher import CeleryTaskDispatcher
@@ -44,6 +47,7 @@ from src.app.core.ports.repository_port import (
     ScanRepository,
     KeywordRunRepository,
     ScoringRepository,
+    WatchlistRepository,
 )
 from src.app.core.ports.task_dispatcher_port import TaskDispatcherPort
 from src.app.core.usecases.analyse_page_deep import AnalysePageDeepUseCase
@@ -55,6 +59,14 @@ from src.app.core.usecases.compute_shop_score import ComputeShopScoreUseCase
 from src.app.core.usecases.get_ranked_shops import GetRankedShopsUseCase
 from src.app.core.usecases.extract_product_count import ExtractProductCountUseCase
 from src.app.core.usecases.search_ads_by_keyword import SearchAdsByKeywordUseCase
+from src.app.core.usecases.watchlists import (
+    CreateWatchlistUseCase,
+    GetWatchlistUseCase,
+    ListWatchlistsUseCase,
+    AddPageToWatchlistUseCase,
+    RemovePageFromWatchlistUseCase,
+    ListWatchlistItemsUseCase,
+)
 from src.app.infrastructure.celery.celery_app import celery_app
 from src.app.infrastructure.db.database import Database, DatabaseConfig
 from src.app.infrastructure.logging.logger_adapter import StandardLoggingAdapter
@@ -199,6 +211,14 @@ AdsRepo = Annotated[AdsRepository, Depends(get_ads_repository)]
 ScanRepo = Annotated[ScanRepository, Depends(get_scan_repository)]
 KeywordRunRepo = Annotated[KeywordRunRepository, Depends(get_keyword_run_repository)]
 ScoringRepo = Annotated[ScoringRepository, Depends(get_scoring_repository)]
+
+
+def get_watchlist_repository(session: DbSession) -> PostgresWatchlistRepository:
+    """Get watchlist repository."""
+    return PostgresWatchlistRepository(session)
+
+
+WatchlistRepo = Annotated[WatchlistRepository, Depends(get_watchlist_repository)]
 
 
 # =============================================================================
@@ -438,4 +458,96 @@ ComputeShopScoreUC = Annotated[
 GetRankedShopsUC = Annotated[
     GetRankedShopsUseCase,
     Depends(get_ranked_shops_use_case),
+]
+
+
+# =============================================================================
+# Watchlist Use Cases
+# =============================================================================
+
+
+def get_create_watchlist_use_case(
+    watchlist_repo: WatchlistRepo,
+) -> CreateWatchlistUseCase:
+    """Get CreateWatchlist use case."""
+    return CreateWatchlistUseCase(
+        watchlist_repository=watchlist_repo,
+        logger=get_logger("usecase.create_watchlist"),
+    )
+
+
+def get_get_watchlist_use_case(
+    watchlist_repo: WatchlistRepo,
+) -> GetWatchlistUseCase:
+    """Get GetWatchlist use case."""
+    return GetWatchlistUseCase(
+        watchlist_repository=watchlist_repo,
+        logger=get_logger("usecase.get_watchlist"),
+    )
+
+
+def get_list_watchlists_use_case(
+    watchlist_repo: WatchlistRepo,
+) -> ListWatchlistsUseCase:
+    """Get ListWatchlists use case."""
+    return ListWatchlistsUseCase(
+        watchlist_repository=watchlist_repo,
+        logger=get_logger("usecase.list_watchlists"),
+    )
+
+
+def get_add_page_to_watchlist_use_case(
+    watchlist_repo: WatchlistRepo,
+) -> AddPageToWatchlistUseCase:
+    """Get AddPageToWatchlist use case."""
+    return AddPageToWatchlistUseCase(
+        watchlist_repository=watchlist_repo,
+        logger=get_logger("usecase.add_page_to_watchlist"),
+    )
+
+
+def get_remove_page_from_watchlist_use_case(
+    watchlist_repo: WatchlistRepo,
+) -> RemovePageFromWatchlistUseCase:
+    """Get RemovePageFromWatchlist use case."""
+    return RemovePageFromWatchlistUseCase(
+        watchlist_repository=watchlist_repo,
+        logger=get_logger("usecase.remove_page_from_watchlist"),
+    )
+
+
+def get_list_watchlist_items_use_case(
+    watchlist_repo: WatchlistRepo,
+) -> ListWatchlistItemsUseCase:
+    """Get ListWatchlistItems use case."""
+    return ListWatchlistItemsUseCase(
+        watchlist_repository=watchlist_repo,
+        logger=get_logger("usecase.list_watchlist_items"),
+    )
+
+
+# Type aliases for watchlist use cases
+CreateWatchlistUC = Annotated[
+    CreateWatchlistUseCase,
+    Depends(get_create_watchlist_use_case),
+]
+GetWatchlistUC = Annotated[
+    GetWatchlistUseCase,
+    Depends(get_get_watchlist_use_case),
+]
+ListWatchlistsUC = Annotated[
+    ListWatchlistsUseCase,
+    Depends(get_list_watchlists_use_case),
+]
+AddPageToWatchlistUC = Annotated[
+    AddPageToWatchlistUseCase,
+    Depends(get_add_page_to_watchlist_use_case),
+]
+RemovePageFromWatchlistUC = Annotated[
+    RemovePageFromWatchlistUseCase,
+    Depends(get_remove_page_from_watchlist_use_case),
+]
+ListWatchlistItemsUC = Annotated[
+    ListWatchlistItemsUseCase,
+    Depends(get_list_watchlist_items_use_case),
 ]

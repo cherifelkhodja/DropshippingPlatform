@@ -11,6 +11,7 @@ from .scan import Scan, ScanType, ScanStatus, ScanResult
 from .keyword_run import KeywordRun, KeywordRunStatus, KeywordRunResult
 from .shop_score import ShopScore
 from .ranked_shop import RankedShop, RankedShopsResult
+from .watchlist import Watchlist, WatchlistItem
 
 __all__ = [
     # Page
@@ -37,4 +38,7 @@ __all__ = [
     # Ranked Shop (read-model)
     "RankedShop",
     "RankedShopsResult",
+    # Watchlist
+    "Watchlist",
+    "WatchlistItem",
 ]
