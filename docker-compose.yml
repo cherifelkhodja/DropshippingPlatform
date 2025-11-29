@@ -1,0 +1,65 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: dropshipping_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-dropshipping}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dropshipping}
+      POSTGRES_DB: ${POSTGRES_DB:-dropshipping}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - backend_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dropshipping} -d ${POSTGRES_DB:-dropshipping}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  app:
+    build:
+      context: .
+      dockerfile: docker/app.Dockerfile
+    container_name: dropshipping_app
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dropshipping}:${POSTGRES_PASSWORD:-dropshipping}@postgres:5432/${POSTGRES_DB:-dropshipping}
+    ports:
+      - "8000:8000"
+    networks:
+      - backend_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["./scripts/start.sh"]
+
+  mockserver:
+    image: python:3.11-slim
+    container_name: dropshipping_mockserver
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - ./mockserver:/app
+    ports:
+      - "8080:8080"
+    networks:
+      - backend_net
+    command: ["python", "server.py"]
+    profiles:
+      - testing
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  backend_net:
+    driver: bridge
