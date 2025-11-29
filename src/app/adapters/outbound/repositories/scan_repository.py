@@ -3,6 +3,7 @@
 Implements ScanRepository port with SQLAlchemy async operations.
 """
 
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import select
@@ -76,4 +77,49 @@ class PostgresScanRepository:
             raise RepositoryError(
                 operation="get_scan",
                 reason=f"Failed to get scan: {exc}",
+            ) from exc
+
+    async def list_scans(
+        self,
+        status: str | None = None,
+        since: datetime | None = None,
+        page_id: str | None = None,
+        offset: int = 0,
+        limit: int = 50,
+    ) -> list[Scan]:
+        """List scans with optional filtering.
+
+        Args:
+            status: Filter by scan status.
+            since: Filter scans created after this datetime.
+            page_id: Filter by associated page ID.
+            offset: Number of items to skip.
+            limit: Maximum number of items to return.
+
+        Returns:
+            List of Scan entities matching the filters.
+
+        Raises:
+            RepositoryError: On database errors.
+        """
+        try:
+            stmt = select(ScanModel).order_by(ScanModel.created_at.desc())
+
+            if status:
+                stmt = stmt.where(ScanModel.status == status)
+            if since:
+                stmt = stmt.where(ScanModel.created_at >= since)
+            if page_id:
+                stmt = stmt.where(ScanModel.page_id == page_id)
+
+            stmt = stmt.offset(offset).limit(limit)
+
+            result = await self._session.execute(stmt)
+            models = result.scalars().all()
+
+            return [scan_mapper.to_domain(model) for model in models]
+        except SQLAlchemyError as exc:
+            raise RepositoryError(
+                operation="list_scans",
+                reason=f"Failed to list scans: {exc}",
             ) from exc

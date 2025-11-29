@@ -1,8 +1,7 @@
 """Integration test fixtures and configuration."""
 
-import asyncio
 import os
-from collections.abc import AsyncGenerator, Generator
+from collections.abc import AsyncGenerator
 from uuid import uuid4
 
 import aiohttp
@@ -23,17 +22,13 @@ TEST_DATABASE_URL = os.getenv(
 MOCK_SERVER_URL = os.getenv("MOCK_SERVER_URL", "http://localhost:8080")
 
 
-@pytest.fixture(scope="session")
-def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
-    """Create event loop for async tests."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
-
-
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(loop_scope="function")
 async def test_engine():
-    """Create test database engine."""
+    """Create test database engine for each test function.
+
+    Note: Using function scope to avoid pytest-asyncio scope mismatch issues.
+    Each test gets its own engine and creates/drops tables.
+    """
     engine = create_async_engine(TEST_DATABASE_URL, echo=False)
 
     # Create all tables
@@ -49,7 +44,7 @@ async def test_engine():
     await engine.dispose()
 
 
-@pytest_asyncio.fixture
+@pytest_asyncio.fixture(loop_scope="function")
 async def db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
     """Create a new database session for each test."""
     session_factory = async_sessionmaker(
@@ -64,7 +59,7 @@ async def db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
         await session.rollback()
 
 
-@pytest_asyncio.fixture
+@pytest_asyncio.fixture(loop_scope="function")
 async def http_session() -> AsyncGenerator[aiohttp.ClientSession, None]:
     """Create aiohttp client session for tests."""
     async with aiohttp.ClientSession() as session:

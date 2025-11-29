@@ -1,7 +1,7 @@
 # ARCHITECTURE & ENGINEERING GUIDELINES — Dropshipping Platform
 
-> **Version**: 1.1.0
-> **Dernière mise à jour**: Sprint 1
+> **Version**: 2.0.0
+> **Dernière mise à jour**: Sprint 2
 > **Mainteneur**: Tech Lead / Architecte
 
 ---
@@ -921,16 +921,85 @@ docs: add ARCHITECTURE.md (initial version)
 
 ---
 
-### Sprint 2 — (À venir)
+### Sprint 2 — Application Layer & Task System
 
-**Objectif** : Implémenter les adapters inbound (API FastAPI, Celery workers)
+**Objectif** : Implémenter les adapters inbound (API FastAPI, Celery workers, admin monitoring)
+
+**Livrables** :
+
+#### Étape 1 — FastAPI Application Layer
+- [x] FastAPI application with lifespan handler (`main.py`)
+- [x] Shared HTTP session via `app.state` in lifespan context
+- [x] API routes structure (`src/app/api/routers/`)
+  - Health endpoint: `GET /health`
+  - Keywords: `POST /api/v1/keywords/search`
+  - Pages: `GET /api/v1/pages`, `GET /api/v1/pages/{page_id}`
+  - Scans: `GET /api/v1/scans/{scan_id}`
+- [x] Pydantic schemas (`src/app/api/schemas/`)
+- [x] Dependency injection (`src/app/api/dependencies.py`)
+- [x] Exception handlers with HTTP status mapping:
+  - `EntityNotFoundError` → 404
+  - `MetaAdsRateLimitError` → 429
+  - `MetaAdsAuthenticationError` → 401
+  - `ScrapingBlockedError` → 403
+  - `ScrapingTimeoutError` → 504
+  - `SitemapNotFoundError` → 404
+  - `SitemapParsingError` → 422
+  - `RepositoryError` → 500
+  - `TaskDispatchError` → 503
+- [x] Integration tests for API endpoints (21 tests)
+
+#### Étape 2 — TaskDispatcherPort (Celery + Redis)
+- [x] Redis + Celery Worker services in `docker-compose.yml`
+- [x] `CelerySettings` configuration in `runtime_settings.py`
+- [x] Celery application (`src/app/infrastructure/celery/celery_app.py`)
+- [x] Task definitions (`src/app/infrastructure/celery/tasks.py`):
+  - `scan_page_task`
+  - `analyse_website_task`
+  - `count_sitemap_products_task`
+- [x] `CeleryTaskDispatcher` adapter implementing `TaskDispatcherPort`
+- [x] DI integration with `get_task_dispatcher()` and `TaskDispatcher` type alias
+- [x] Unit tests for CeleryTaskDispatcher (12 tests)
+
+#### Étape 3 — Admin Monitoring Endpoints
+- [x] Admin router (`src/app/api/routers/admin.py`):
+  - `GET /api/v1/admin/pages/active` — List pages with filters (country, is_shopify, min_ads, max_ads, state)
+  - `GET /api/v1/admin/keywords/recent` — List recent keyword runs
+  - `GET /api/v1/admin/scans` — List scans with filters (status, since, page_id)
+- [x] Admin schemas (`src/app/api/schemas/admin.py`)
+- [x] `list_scans` method added to `PostgresScanRepository`
+- [x] Integration tests for admin endpoints (12 tests)
+
+#### Testing
+- [x] Fixed pytest-asyncio scope issues in integration tests
+- [x] 213 unit tests passing (excluding DB integration tests requiring PostgreSQL)
+- [x] DB integration tests properly marked with `@pytest.mark.integration`
+
+**Flux d'architecture** :
+```
+Client HTTP → FastAPI Router → Use Cases → Ports → Adapters → DB / External APIs
+                    ↓
+              TaskDispatcher → Celery → Redis → Worker Tasks
+```
+
+**Commits** :
+- `feat(sprint-2): add FastAPI application layer and basic endpoints`
+- `fix(api): improve HTTP session management and exception handlers`
+- `feat(sprint-2): add Celery-based task dispatcher and worker infrastructure`
+- `chore(sprint-2): add admin monitoring endpoints, fix integration tests and update documentation`
+
+---
+
+### Sprint 3 — (À venir)
+
+**Objectif** : UI/Dashboard, filtres avancés, observabilité, sécurité
 
 **Planification** :
-- [ ] FastAPI endpoints (routes, schemas, dependencies)
-- [ ] TaskDispatcherPort implementation (Celery)
-- [ ] Admin Dashboard API (listing pages, scans, stats)
-- [ ] Structured logging implementation (structlog)
-- [ ] E2E tests
+- [ ] Admin Dashboard (front-end minimal ou API-driven)
+- [ ] Filtres avancés + scoring des shops
+- [ ] Observabilité (metrics Prometheus, logs structurés, tracing)
+- [ ] Sécurité & Auth (API keys / JWT)
+- [ ] E2E tests complets
 
 ---
 
