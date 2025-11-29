@@ -5,8 +5,8 @@ Interfaces for data persistence operations.
 
 from typing import Protocol, Sequence
 
-from ..domain.entities import Page, Ad, Scan, KeywordRun, ShopScore
-from ..domain.value_objects import ScanId
+from ..domain.entities import Page, Ad, Scan, KeywordRun, ShopScore, RankedShop
+from ..domain.value_objects import ScanId, RankingCriteria
 
 
 class PageRepository(Protocol):
@@ -242,6 +242,46 @@ class ScoringRepository(Protocol):
 
         Returns:
             The total count of ShopScore entities.
+
+        Raises:
+            RepositoryError: On database errors.
+        """
+        ...
+
+    async def list_ranked(
+        self,
+        criteria: RankingCriteria,
+    ) -> list[RankedShop]:
+        """Return a ranked list of shops matching the criteria.
+
+        Shops are ordered by score descending, then by created_at descending
+        for ties. Applies filters from criteria (tier, min_score, country).
+
+        Args:
+            criteria: The ranking criteria including filters and pagination.
+
+        Returns:
+            List of RankedShop projections matching the criteria.
+
+        Raises:
+            RepositoryError: On database errors.
+        """
+        ...
+
+    async def count_ranked(
+        self,
+        criteria: RankingCriteria,
+    ) -> int:
+        """Return total count of shops matching the criteria.
+
+        Counts shops matching the same filters as list_ranked (tier, min_score,
+        country) but ignores limit/offset for pagination purposes.
+
+        Args:
+            criteria: The ranking criteria including filters (limit/offset ignored).
+
+        Returns:
+            Total count of shops matching the filter criteria.
 
         Raises:
             RepositoryError: On database errors.

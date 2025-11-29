@@ -36,6 +36,7 @@ from .compute_shop_score import (
     ComputeShopScoreUseCase,
     ComputeShopScoreResult,
 )
+from .get_ranked_shops import GetRankedShopsUseCase
 
 __all__ = [
     # Search Ads
@@ -57,4 +58,6 @@ __all__ = [
     # Compute Shop Score
     "ComputeShopScoreUseCase",
     "ComputeShopScoreResult",
+    # Get Ranked Shops
+    "GetRankedShopsUseCase",
 ]

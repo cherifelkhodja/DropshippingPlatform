@@ -10,6 +10,7 @@ from .shopify_profile import ShopifyProfile, ShopifyTheme, ShopifyApp
 from .scan import Scan, ScanType, ScanStatus, ScanResult
 from .keyword_run import KeywordRun, KeywordRunStatus, KeywordRunResult
 from .shop_score import ShopScore
+from .ranked_shop import RankedShop, RankedShopsResult
 
 __all__ = [
     # Page
@@ -33,4 +34,7 @@ __all__ = [
     "KeywordRunResult",
     # Shop Score
     "ShopScore",
+    # Ranked Shop (read-model)
+    "RankedShop",
+    "RankedShopsResult",
 ]

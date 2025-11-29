@@ -52,6 +52,7 @@ from src.app.core.usecases.compute_page_active_ads_count import (
     ComputePageActiveAdsCountUseCase,
 )
 from src.app.core.usecases.compute_shop_score import ComputeShopScoreUseCase
+from src.app.core.usecases.get_ranked_shops import GetRankedShopsUseCase
 from src.app.core.usecases.extract_product_count import ExtractProductCountUseCase
 from src.app.core.usecases.search_ads_by_keyword import SearchAdsByKeywordUseCase
 from src.app.infrastructure.celery.celery_app import celery_app
@@ -396,6 +397,19 @@ def get_compute_shop_score_use_case(
     )
 
 
+def get_ranked_shops_use_case(
+    scoring_repo: ScoringRepo,
+) -> GetRankedShopsUseCase:
+    """Get GetRankedShops use case.
+
+    Uses injected repository dependencies for cleaner composition.
+    """
+    return GetRankedShopsUseCase(
+        scoring_repository=scoring_repo,
+        logger=get_logger("usecase.get_ranked_shops"),
+    )
+
+
 # Type aliases for use cases
 SearchAdsUseCase = Annotated[
     SearchAdsByKeywordUseCase,
@@ -420,4 +434,8 @@ ExtractProductCountUC = Annotated[
 ComputeShopScoreUC = Annotated[
     ComputeShopScoreUseCase,
     Depends(get_compute_shop_score_use_case),
+]
+GetRankedShopsUC = Annotated[
+    GetRankedShopsUseCase,
+    Depends(get_ranked_shops_use_case),
 ]

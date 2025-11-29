@@ -1,5 +1,7 @@
 """Page endpoints."""
 
+from datetime import datetime
+
 from fastapi import APIRouter, Query
 
 from src.app.api.schemas.pages import PageResponse, PageListResponse
@@ -9,11 +11,14 @@ from src.app.api.schemas.scoring import (
     TopShopEntry,
     TopShopsResponse,
     RecomputeScoreResponse,
+    RankedShopsResponse,
+    ranked_result_to_response,
 )
 from src.app.api.schemas.common import ErrorResponse
-from src.app.api.dependencies import PageRepo, ScoringRepo, TaskDispatcher
+from src.app.api.dependencies import PageRepo, ScoringRepo, TaskDispatcher, GetRankedShopsUC
 from src.app.core.domain.entities.page import Page
 from src.app.core.domain.errors import EntityNotFoundError
+from src.app.core.domain.value_objects.ranking import RankingCriteria
 
 router = APIRouter(prefix="/pages", tags=["Pages"])
 
@@ -104,6 +109,58 @@ async def list_pages(
 
 
 @router.get(
+    "/ranked",
+    response_model=RankedShopsResponse,
+    summary="Get ranked shops with filters",
+    description="Get a paginated list of shops ranked by score with optional filters.",
+    responses={
+        500: {"model": ErrorResponse, "description": "Database error"},
+    },
+)
+async def get_ranked_shops(
+    get_ranked_shops_uc: GetRankedShopsUC,
+    limit: int = Query(default=50, ge=1, le=200, description="Number of shops to return"),
+    offset: int = Query(default=0, ge=0, description="Offset for pagination"),
+    tier: str | None = Query(
+        default=None,
+        description="Filter by tier (XS, S, M, L, XL, XXL)",
+        pattern="^(XS|S|M|L|XL|XXL)$",
+    ),
+    min_score: float | None = Query(
+        default=None,
+        ge=0,
+        le=100,
+        description="Minimum score filter (0-100)",
+    ),
+    country: str | None = Query(
+        default=None,
+        min_length=2,
+        max_length=2,
+        description="Filter by country code (ISO 3166-1 alpha-2)",
+    ),
+) -> RankedShopsResponse:
+    """Get ranked shops with optional filters.
+
+    Returns a paginated list of shops ordered by score (highest first),
+    with optional filtering by tier, minimum score, and country.
+    """
+    # Build criteria from query params (RankingCriteria handles validation)
+    criteria = RankingCriteria(
+        limit=limit,
+        offset=offset,
+        tier=tier,
+        min_score=min_score,
+        country=country,
+    )
+
+    # Execute use case
+    result = await get_ranked_shops_uc.execute(criteria)
+
+    # Convert to API response
+    return ranked_result_to_response(result)
+
+
+@router.get(
     "/top",
     response_model=TopShopsResponse,
     summary="Get top-ranked shops",
@@ -113,40 +170,50 @@ async def list_pages(
     },
 )
 async def get_top_shops(
+    get_ranked_shops_uc: GetRankedShopsUC,
     page_repo: PageRepo,
-    scoring_repo: ScoringRepo,
     limit: int = Query(default=50, ge=1, le=100, description="Number of top shops"),
     offset: int = Query(default=0, ge=0, description="Offset for pagination"),
 ) -> TopShopsResponse:
     """Get top-ranked shops by score.
 
     Returns a list of shops ordered by their computed score,
-    from highest to lowest.
-    """
-    # Get top scores and total count in parallel (efficient)
-    top_scores = await scoring_repo.list_top(limit=limit, offset=offset)
-    total = await scoring_repo.count()
+    from highest to lowest. Uses the ranking use case internally.
 
-    # Build response with page domain info
+    Note: This endpoint is kept for backwards compatibility.
+    For new integrations, consider using /pages/ranked which offers
+    more filtering options.
+    """
+    # Use the ranking use case with no filters
+    criteria = RankingCriteria(limit=limit, offset=offset)
+    result = await get_ranked_shops_uc.execute(criteria)
+
+    # Build response in the legacy TopShopsResponse format
     items = []
-    for rank, score in enumerate(top_scores, start=offset + 1):
-        page = await page_repo.get(score.page_id)
-        domain = page.domain if page else "unknown"
+    for rank, shop in enumerate(result.items, start=offset + 1):
+        # For domain, we use the name field (which contains domain) or fetch from page
+        domain = shop.name
+        if not domain:
+            page = await page_repo.get(shop.page_id)
+            domain = page.domain if page else "unknown"
 
         items.append(
             TopShopEntry(
                 rank=rank,
-                page_id=score.page_id,
+                page_id=shop.page_id,
                 domain=domain,
-                score=score.score,
-                tier=score.tier,
-                computed_at=score.created_at,
+                score=shop.score,
+                tier=shop.tier,
+                # Note: RankedShop doesn't have computed_at timestamp.
+                # Using current time as a placeholder for backwards compatibility.
+                # The new /pages/ranked endpoint doesn't include this field.
+                computed_at=datetime.utcnow(),
             )
         )
 
     return TopShopsResponse(
         items=items,
-        total=total,
+        total=result.total,
         limit=limit,
         offset=offset,
     )
