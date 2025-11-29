@@ -13,9 +13,13 @@ from src.app.infrastructure.db.models import Base
 
 
 # Test database URL (use environment variable or default)
+# Check TEST_DATABASE_URL first, then DATABASE_URL for CI compatibility
 TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL",
-    "postgresql+asyncpg://dropshipping:dropshipping@localhost:5432/dropshipping_test",
+    os.getenv(
+        "DATABASE_URL",
+        "postgresql+asyncpg://dropshipping:dropshipping@localhost:5432/dropshipping_test",
+    ),
 )
 
 # Mock server URL
