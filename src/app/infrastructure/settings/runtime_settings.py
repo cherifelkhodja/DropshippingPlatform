@@ -89,6 +89,22 @@ class CelerySettings(BaseSettings):
     task_soft_time_limit: int = Field(default=270)  # 4.5 minutes
 
 
+class SecuritySettings(BaseSettings):
+    """Security and authentication settings."""
+
+    model_config = SettingsConfigDict(
+        env_prefix="SECURITY_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    admin_api_key: str | None = Field(
+        default=None,
+        description="API key for admin endpoints. If not set, admin endpoints are open.",
+    )
+
+
 class AppSettings(BaseSettings):
     """Main application settings."""
 
@@ -110,6 +126,7 @@ class AppSettings(BaseSettings):
     meta_ads: MetaAdsSettings = Field(default_factory=MetaAdsSettings)
     scraper: ScraperSettings = Field(default_factory=ScraperSettings)
     celery: CelerySettings = Field(default_factory=CelerySettings)
+    security: SecuritySettings = Field(default_factory=SecuritySettings)
 
 
 @lru_cache

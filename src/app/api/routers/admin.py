@@ -1,13 +1,20 @@
 """Admin monitoring API router.
 
 Provides endpoints for monitoring pages, keywords, and scans.
+All endpoints are protected by API key authentication when
+SECURITY_ADMIN_API_KEY is configured.
 """
 
 from datetime import datetime
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 
-from src.app.api.dependencies import KeywordRunRepo, PageRepo, ScanRepo
+from src.app.api.dependencies import (
+    KeywordRunRepo,
+    PageRepo,
+    ScanRepo,
+    get_admin_auth,
+)
 from src.app.api.schemas.admin import (
     AdminKeywordListResponse,
     AdminKeywordRunResponse,
@@ -20,7 +27,12 @@ from src.app.core.domain.entities.keyword_run import KeywordRun
 from src.app.core.domain.entities.page import Page
 from src.app.core.domain.entities.scan import Scan
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+# All admin routes require authentication via X-Admin-Api-Key header
+router = APIRouter(
+    prefix="/admin",
+    tags=["admin"],
+    dependencies=[Depends(get_admin_auth)],
+)
 
 
 def _page_to_admin_response(page: Page) -> AdminPageResponse:
