@@ -40,7 +40,9 @@ from .value_objects import (
 )
 
 from .errors import (
+    # Base error
     DomainError,
+    # Validation errors
     InvalidUrlError,
     InvalidCountryError,
     InvalidLanguageError,
@@ -50,8 +52,24 @@ from .errors import (
     InvalidCategoryError,
     InvalidScanIdError,
     InvalidPaymentMethodError,
+    # Entity errors
     EntityNotFoundError,
     DuplicateEntityError,
+    # Scraping errors
+    ScrapingError,
+    ScrapingTimeoutError,
+    ScrapingBlockedError,
+    # Sitemap errors
+    SitemapNotFoundError,
+    SitemapParsingError,
+    # Repository errors
+    RepositoryError,
+    # Task errors
+    TaskDispatchError,
+    # Meta Ads API errors
+    MetaAdsApiError,
+    MetaAdsRateLimitError,
+    MetaAdsAuthenticationError,
 )
 
 __all__ = [
@@ -82,8 +100,9 @@ __all__ = [
     "PageState",
     "PageStatus",
     "ScanId",
-    # Errors
+    # Errors - Base
     "DomainError",
+    # Errors - Validation
     "InvalidUrlError",
     "InvalidCountryError",
     "InvalidLanguageError",
@@ -93,6 +112,22 @@ __all__ = [
     "InvalidCategoryError",
     "InvalidScanIdError",
     "InvalidPaymentMethodError",
+    # Errors - Entity
     "EntityNotFoundError",
     "DuplicateEntityError",
+    # Errors - Scraping
+    "ScrapingError",
+    "ScrapingTimeoutError",
+    "ScrapingBlockedError",
+    # Errors - Sitemap
+    "SitemapNotFoundError",
+    "SitemapParsingError",
+    # Errors - Repository
+    "RepositoryError",
+    # Errors - Task
+    "TaskDispatchError",
+    # Errors - Meta Ads API
+    "MetaAdsApiError",
+    "MetaAdsRateLimitError",
+    "MetaAdsAuthenticationError",
 ]

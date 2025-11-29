@@ -120,3 +120,92 @@ class DuplicateEntityError(DomainError):
             message=f"{entity_type} already exists",
             value=entity_id
         )
+
+
+# =============================================================================
+# Infrastructure/Port-related Errors
+# These errors are raised by adapter implementations but defined in domain
+# to maintain the dependency direction (adapters depend on domain).
+# =============================================================================
+
+
+class ScrapingError(DomainError):
+    """Base error for scraping operations."""
+
+    def __init__(self, url: str, reason: str = "Scraping failed") -> None:
+        super().__init__(message=reason, value=url)
+
+
+class ScrapingTimeoutError(ScrapingError):
+    """Raised when a scraping request times out."""
+
+    def __init__(self, url: str, timeout_seconds: int) -> None:
+        super().__init__(
+            url=url,
+            reason=f"Request timed out after {timeout_seconds} seconds"
+        )
+
+
+class ScrapingBlockedError(ScrapingError):
+    """Raised when scraping is blocked (403, captcha, etc.)."""
+
+    def __init__(self, url: str, status_code: int | None = None) -> None:
+        reason = "Request blocked"
+        if status_code:
+            reason = f"Request blocked with status {status_code}"
+        super().__init__(url=url, reason=reason)
+
+
+class SitemapNotFoundError(DomainError):
+    """Raised when no sitemap is found for a website."""
+
+    def __init__(self, website: str) -> None:
+        super().__init__(
+            message="No sitemap found for website",
+            value=website
+        )
+
+
+class SitemapParsingError(DomainError):
+    """Raised when a sitemap cannot be parsed."""
+
+    def __init__(self, sitemap_url: str, reason: str = "Failed to parse sitemap") -> None:
+        super().__init__(message=reason, value=sitemap_url)
+
+
+class RepositoryError(DomainError):
+    """Base error for repository operations."""
+
+    def __init__(self, operation: str, reason: str = "Database operation failed") -> None:
+        super().__init__(message=reason, value=operation)
+
+
+class TaskDispatchError(DomainError):
+    """Raised when a task cannot be dispatched."""
+
+    def __init__(self, task_name: str, reason: str = "Failed to dispatch task") -> None:
+        super().__init__(message=reason, value=task_name)
+
+
+class MetaAdsApiError(DomainError):
+    """Base error for Meta Ads API operations."""
+
+    def __init__(self, reason: str = "Meta Ads API error") -> None:
+        super().__init__(message=reason)
+
+
+class MetaAdsRateLimitError(MetaAdsApiError):
+    """Raised when Meta Ads API rate limit is exceeded."""
+
+    def __init__(self, retry_after: int | None = None) -> None:
+        reason = "Rate limit exceeded"
+        if retry_after:
+            reason = f"Rate limit exceeded, retry after {retry_after} seconds"
+        super().__init__(reason=reason)
+
+
+class MetaAdsAuthenticationError(MetaAdsApiError):
+    """Raised when Meta Ads API authentication fails."""
+
+    def __init__(self) -> None:
+        super().__init__(reason="Authentication failed")
