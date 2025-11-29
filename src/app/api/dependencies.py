@@ -273,7 +273,6 @@ def get_compute_ads_count_use_case(
     return ComputePageActiveAdsCountUseCase(
         meta_ads_port=get_meta_ads_client(http_session, settings),
         page_repository=PostgresPageRepository(session),
-        ads_repository=PostgresAdsRepository(session),
         logger=get_logger(),
     )
 
@@ -284,8 +283,9 @@ def get_analyse_website_use_case(
 ) -> AnalyseWebsiteUseCase:
     """Get AnalyseWebsite use case."""
     return AnalyseWebsiteUseCase(
-        page_repository=PostgresPageRepository(session),
         html_scraper=get_html_scraper(http_session),
+        page_repository=PostgresPageRepository(session),
+        task_dispatcher=get_task_dispatcher(),
         logger=get_logger(),
     )
 
@@ -297,10 +297,11 @@ def get_analyse_page_deep_use_case(
 ) -> AnalysePageDeepUseCase:
     """Get AnalysePageDeep use case."""
     return AnalysePageDeepUseCase(
-        page_repository=PostgresPageRepository(session),
+        meta_ads_port=get_meta_ads_client(http_session, settings),
         ads_repository=PostgresAdsRepository(session),
         scan_repository=PostgresScanRepository(session),
-        meta_ads_port=get_meta_ads_client(http_session, settings),
+        page_repository=PostgresPageRepository(session),
+        task_dispatcher=get_task_dispatcher(),
         logger=get_logger(),
     )
 

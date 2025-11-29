@@ -5,13 +5,14 @@ from fastapi import APIRouter
 from src.app.api.schemas.scans import ScanResponse, ScanResultResponse
 from src.app.api.schemas.common import ErrorResponse
 from src.app.api.dependencies import ScanRepo
+from src.app.core.domain.entities.scan import Scan
 from src.app.core.domain.errors import EntityNotFoundError, InvalidScanIdError
 from src.app.core.domain.value_objects import ScanId
 
 router = APIRouter(prefix="/scans", tags=["Scans"])
 
 
-def _scan_to_response(scan: "Scan") -> ScanResponse:  # type: ignore[name-defined]
+def _scan_to_response(scan: Scan) -> ScanResponse:
     """Convert domain Scan to API response."""
     result_response = None
     if scan.result:

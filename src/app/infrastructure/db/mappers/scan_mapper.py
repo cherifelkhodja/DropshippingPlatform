@@ -4,6 +4,7 @@ Bidirectional mapping between Scan domain entity and ScanModel ORM.
 Pure functions, no I/O, no session dependency.
 """
 
+from typing import Any, cast
 from uuid import UUID
 
 from src.app.core.domain.entities.scan import Scan, ScanResult, ScanStatus, ScanType
@@ -50,16 +51,24 @@ def _result_to_dict(result: ScanResult) -> dict[str, object]:
     }
 
 
-def _dict_to_result(data: dict[str, object]) -> ScanResult:
+def _dict_to_result(data: dict[str, Any]) -> ScanResult:
     """Convert dictionary from JSONB to ScanResult."""
+    ads_found = data.get("ads_found", 0)
+    new_ads = data.get("new_ads", 0)
+    products_found = data.get("products_found", 0)
+    is_shopify = data.get("is_shopify")
+    errors = data.get("errors", [])
+    warnings = data.get("warnings", [])
+    metadata = data.get("metadata", {})
+
     return ScanResult(
-        ads_found=int(data.get("ads_found", 0)),
-        new_ads=int(data.get("new_ads", 0)),
-        products_found=int(data.get("products_found", 0)),
-        is_shopify=data.get("is_shopify"),
-        errors=list(data.get("errors", [])),
-        warnings=list(data.get("warnings", [])),
-        metadata=dict(data.get("metadata", {})),
+        ads_found=int(ads_found) if ads_found is not None else 0,
+        new_ads=int(new_ads) if new_ads is not None else 0,
+        products_found=int(products_found) if products_found is not None else 0,
+        is_shopify=cast(bool | None, is_shopify),
+        errors=cast(list[str], errors) if errors else [],
+        warnings=cast(list[str], warnings) if warnings else [],
+        metadata=cast(dict[str, Any], metadata) if metadata else {},
     )
 
 

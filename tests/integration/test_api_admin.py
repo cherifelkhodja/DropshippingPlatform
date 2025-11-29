@@ -1,7 +1,6 @@
 """Integration tests for admin API endpoints."""
 
-from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -14,7 +13,7 @@ from src.app.api.dependencies import (
 from src.app.core.domain.entities.keyword_run import KeywordRun
 from src.app.core.domain.entities.page import Page
 from src.app.core.domain.entities.scan import Scan, ScanType
-from src.app.core.domain.value_objects import Country, ScanId, Url
+from src.app.core.domain.value_objects import Country, Url
 from src.app.main import app
 
 

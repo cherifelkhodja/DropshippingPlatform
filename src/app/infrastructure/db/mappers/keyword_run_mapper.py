@@ -4,6 +4,7 @@ Bidirectional mapping between KeywordRun domain entity and KeywordRunModel ORM.
 Pure functions, no I/O, no session dependency.
 """
 
+from typing import Any, cast
 from uuid import UUID
 
 from src.app.core.domain.entities.keyword_run import (
@@ -39,14 +40,22 @@ def _result_to_dict(result: KeywordRunResult) -> dict[str, object]:
     }
 
 
-def _dict_to_result(data: dict[str, object]) -> KeywordRunResult:
+def _dict_to_result(data: dict[str, Any]) -> KeywordRunResult:
     """Convert dictionary from JSONB to KeywordRunResult."""
+    total_ads_found = data.get("total_ads_found", 0)
+    unique_pages_found = data.get("unique_pages_found", 0)
+    new_pages_found = data.get("new_pages_found", 0)
+    ads_processed = data.get("ads_processed", 0)
+    errors = data.get("errors", [])
+
     return KeywordRunResult(
-        total_ads_found=int(data.get("total_ads_found", 0)),
-        unique_pages_found=int(data.get("unique_pages_found", 0)),
-        new_pages_found=int(data.get("new_pages_found", 0)),
-        ads_processed=int(data.get("ads_processed", 0)),
-        errors=list(data.get("errors", [])),
+        total_ads_found=int(total_ads_found) if total_ads_found is not None else 0,
+        unique_pages_found=int(unique_pages_found)
+        if unique_pages_found is not None
+        else 0,
+        new_pages_found=int(new_pages_found) if new_pages_found is not None else 0,
+        ads_processed=int(ads_processed) if ads_processed is not None else 0,
+        errors=cast(list[str], errors) if errors else [],
     )
 
 

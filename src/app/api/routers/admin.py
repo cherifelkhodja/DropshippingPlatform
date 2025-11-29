@@ -5,16 +5,14 @@ Provides endpoints for monitoring pages, keywords, and scans.
 
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Query
 
-from src.app.api.dependencies import DbSession, KeywordRunRepo, PageRepo, ScanRepo
+from src.app.api.dependencies import KeywordRunRepo, PageRepo, ScanRepo
 from src.app.api.schemas.admin import (
     AdminKeywordListResponse,
     AdminKeywordRunResponse,
-    AdminPageFilters,
     AdminPageListResponse,
     AdminPageResponse,
-    AdminScanFilters,
     AdminScanListResponse,
     AdminScanResponse,
 )
@@ -53,13 +51,20 @@ def _keyword_run_to_admin_response(run: KeywordRun) -> AdminKeywordRunResponse:
 
 def _scan_to_admin_response(scan: Scan) -> AdminScanResponse:
     """Convert domain Scan to admin API response."""
+    result_summary = None
+    if scan.result:
+        result_summary = (
+            f"ads={scan.result.ads_found}, "
+            f"products={scan.result.products_found}, "
+            f"shopify={scan.result.is_shopify}"
+        )
     return AdminScanResponse(
         id=str(scan.id),
         status=scan.status.value,
         started_at=scan.started_at,
         completed_at=scan.completed_at,
         page_id=scan.page_id,
-        result_summary=scan.result.get("summary") if scan.result else None,
+        result_summary=result_summary,
     )
 
 

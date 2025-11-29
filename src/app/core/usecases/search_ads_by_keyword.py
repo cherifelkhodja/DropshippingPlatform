@@ -211,12 +211,11 @@ class SearchAdsByKeywordUseCase:
                 )
                 return None
 
-            # Parse link URL if present
-            link_url = None
+            # Validate link URL if present (just for validation, not used yet)
             link_str = raw.get("link_url") or raw.get("link_caption")
             if link_str:
                 try:
-                    link_url = Url(link_str)
+                    Url(link_str)  # Validate URL format
                 except InvalidUrlError:
                     pass
 

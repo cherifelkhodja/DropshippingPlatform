@@ -287,7 +287,6 @@ class AnalyseWebsiteUseCase:
             return True
 
         # Check HTML patterns
-        html_lower = html.lower()
         for pattern in self.SHOPIFY_PATTERNS:
             if re.search(pattern, html, re.IGNORECASE):
                 return True

@@ -133,7 +133,7 @@ def analyse_website_task(
     try:
         # TODO: Implement actual analysis logic with use case injection
         # For now, return placeholder result
-        result = {
+        result: dict[str, Any] = {
             "page_id": page_id,
             "url": url,
             "status": "completed",

@@ -5,12 +5,13 @@ from fastapi import APIRouter, Query
 from src.app.api.schemas.pages import PageResponse, PageListResponse
 from src.app.api.schemas.common import ErrorResponse
 from src.app.api.dependencies import PageRepo
+from src.app.core.domain.entities.page import Page
 from src.app.core.domain.errors import EntityNotFoundError
 
 router = APIRouter(prefix="/pages", tags=["Pages"])
 
 
-def _page_to_response(page: "Page") -> PageResponse:  # type: ignore[name-defined]
+def _page_to_response(page: Page) -> PageResponse:
     """Convert domain Page to API response."""
     return PageResponse(
         id=page.id,
