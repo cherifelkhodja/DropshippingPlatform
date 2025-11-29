@@ -15,6 +15,7 @@ from src.app.core.domain import (
     Scan,
     ScanType,
     KeywordRun,
+    ShopScore,
     Url,
     Country,
     Language,
@@ -204,6 +205,26 @@ class FakeKeywordRunRepository:
         )[:limit]
 
 
+class FakeScoringRepository:
+    """Fake scoring repository for testing."""
+
+    def __init__(self) -> None:
+        self.scores: list[ShopScore] = []
+
+    async def save(self, score: ShopScore) -> None:
+        self.scores.append(score)
+
+    async def get_latest_by_page_id(self, page_id: str) -> ShopScore | None:
+        page_scores = [s for s in self.scores if s.page_id == page_id]
+        if not page_scores:
+            return None
+        return sorted(page_scores, key=lambda s: s.created_at, reverse=True)[0]
+
+    async def list_top(self, limit: int = 50, offset: int = 0) -> list[ShopScore]:
+        sorted_scores = sorted(self.scores, key=lambda s: s.score, reverse=True)
+        return sorted_scores[offset : offset + limit]
+
+
 class FakeTaskDispatcher:
     """Fake task dispatcher for testing."""
 
@@ -287,6 +308,12 @@ def fake_scan_repo() -> FakeScanRepository:
 def fake_keyword_run_repo() -> FakeKeywordRunRepository:
     """Return a fake keyword run repository."""
     return FakeKeywordRunRepository()
+
+
+@pytest.fixture
+def fake_scoring_repo() -> FakeScoringRepository:
+    """Return a fake scoring repository."""
+    return FakeScoringRepository()
 
 
 @pytest.fixture

@@ -15,6 +15,7 @@ from .repository_port import (
     AdsRepository,
     ScanRepository,
     KeywordRunRepository,
+    ScoringRepository,
 )
 from .task_dispatcher_port import TaskDispatcherPort
 from .logging_port import LoggingPort
@@ -30,6 +31,7 @@ __all__ = [
     "AdsRepository",
     "ScanRepository",
     "KeywordRunRepository",
+    "ScoringRepository",
     # Task Orchestration
     "TaskDispatcherPort",
     # Logging

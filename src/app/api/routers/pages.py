@@ -3,8 +3,15 @@
 from fastapi import APIRouter, Query
 
 from src.app.api.schemas.pages import PageResponse, PageListResponse
+from src.app.api.schemas.scoring import (
+    ShopScoreResponse,
+    ScoreComponentsResponse,
+    TopShopEntry,
+    TopShopsResponse,
+    RecomputeScoreResponse,
+)
 from src.app.api.schemas.common import ErrorResponse
-from src.app.api.dependencies import PageRepo
+from src.app.api.dependencies import PageRepo, ScoringRepo, TaskDispatcher
 from src.app.core.domain.entities.page import Page
 from src.app.core.domain.errors import EntityNotFoundError
 
@@ -97,6 +104,55 @@ async def list_pages(
 
 
 @router.get(
+    "/top",
+    response_model=TopShopsResponse,
+    summary="Get top-ranked shops",
+    description="Get a list of top-ranked shops sorted by score.",
+    responses={
+        500: {"model": ErrorResponse, "description": "Database error"},
+    },
+)
+async def get_top_shops(
+    page_repo: PageRepo,
+    scoring_repo: ScoringRepo,
+    limit: int = Query(default=50, ge=1, le=100, description="Number of top shops"),
+    offset: int = Query(default=0, ge=0, description="Offset for pagination"),
+) -> TopShopsResponse:
+    """Get top-ranked shops by score.
+
+    Returns a list of shops ordered by their computed score,
+    from highest to lowest.
+    """
+    # Get top scores and total count in parallel (efficient)
+    top_scores = await scoring_repo.list_top(limit=limit, offset=offset)
+    total = await scoring_repo.count()
+
+    # Build response with page domain info
+    items = []
+    for rank, score in enumerate(top_scores, start=offset + 1):
+        page = await page_repo.get(score.page_id)
+        domain = page.domain if page else "unknown"
+
+        items.append(
+            TopShopEntry(
+                rank=rank,
+                page_id=score.page_id,
+                domain=domain,
+                score=score.score,
+                tier=score.tier,
+                computed_at=score.created_at,
+            )
+        )
+
+    return TopShopsResponse(
+        items=items,
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get(
     "/{page_id}",
     response_model=PageResponse,
     summary="Get page details",
@@ -117,3 +173,82 @@ async def get_page(
         raise EntityNotFoundError("Page", page_id)
 
     return _page_to_response(page)
+
+
+@router.get(
+    "/{page_id}/score",
+    response_model=ShopScoreResponse,
+    summary="Get page score",
+    description="Get the computed score for a specific page.",
+    responses={
+        404: {"model": ErrorResponse, "description": "Page or score not found"},
+        500: {"model": ErrorResponse, "description": "Database error"},
+    },
+)
+async def get_page_score(
+    page_id: str,
+    page_repo: PageRepo,
+    scoring_repo: ScoringRepo,
+) -> ShopScoreResponse:
+    """Get the latest computed score for a page.
+
+    Returns the score breakdown including individual components
+    (ads activity, shopify, creative quality, catalog).
+    """
+    # Verify page exists
+    page = await page_repo.get(page_id)
+    if page is None:
+        raise EntityNotFoundError("Page", page_id)
+
+    # Get latest score
+    score = await scoring_repo.get_latest_by_page_id(page_id)
+    if score is None:
+        raise EntityNotFoundError("ShopScore", page_id)
+
+    return ShopScoreResponse(
+        page_id=score.page_id,
+        score=score.score,
+        tier=score.tier,
+        components=ScoreComponentsResponse(
+            ads_activity=score.components.get("ads_activity", 0.0),
+            shopify=score.components.get("shopify", 0.0),
+            creative_quality=score.components.get("creative_quality", 0.0),
+            catalog=score.components.get("catalog", 0.0),
+        ),
+        computed_at=score.created_at,
+    )
+
+
+@router.post(
+    "/{page_id}/score/recompute",
+    response_model=RecomputeScoreResponse,
+    summary="Recompute page score",
+    description="Dispatch a task to recompute the score for a page.",
+    responses={
+        404: {"model": ErrorResponse, "description": "Page not found"},
+        500: {"model": ErrorResponse, "description": "Task dispatch error"},
+    },
+)
+async def recompute_page_score(
+    page_id: str,
+    page_repo: PageRepo,
+    task_dispatcher: TaskDispatcher,
+) -> RecomputeScoreResponse:
+    """Dispatch a background task to recompute the page score.
+
+    The task will gather current data (ads, Shopify profile, products)
+    and calculate a new score. The task ID can be used to track progress.
+    """
+    # Verify page exists
+    page = await page_repo.get(page_id)
+    if page is None:
+        raise EntityNotFoundError("Page", page_id)
+
+    # Dispatch task via TaskDispatcher (decoupled from Celery)
+    task_id = await task_dispatcher.dispatch_compute_shop_score(page_id=page_id)
+
+    return RecomputeScoreResponse(
+        page_id=page_id,
+        task_id=task_id,
+        status="dispatched",
+    )

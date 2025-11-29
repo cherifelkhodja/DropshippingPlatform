@@ -75,3 +75,23 @@ class TaskDispatcherPort(Protocol):
             TaskDispatchError: If the task cannot be dispatched.
         """
         ...
+
+    async def dispatch_compute_shop_score(
+        self,
+        page_id: str,
+    ) -> str:
+        """Dispatch a shop score computation task.
+
+        Launches an asynchronous job to compute the shop score
+        for a specific page based on ads, Shopify signals, etc.
+
+        Args:
+            page_id: The page to compute score for.
+
+        Returns:
+            The task ID for tracking the dispatched task.
+
+        Raises:
+            TaskDispatchError: If the task cannot be dispatched.
+        """
+        ...

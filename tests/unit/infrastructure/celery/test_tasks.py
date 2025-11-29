@@ -186,3 +186,102 @@ class TestCountSitemapProductsTask:
         assert result["page_id"] == "page-123"
         assert result["product_count"] == 150
         assert result["sitemaps_found"] == 3
+
+
+class TestComputeShopScoreTask:
+    """Tests for compute_shop_score_task."""
+
+    @patch("src.app.infrastructure.celery.tasks.get_container")
+    @patch("src.app.infrastructure.celery.tasks.configure_logging")
+    def test_compute_shop_score_task_calls_use_case(
+        self,
+        mock_configure_logging: MagicMock,
+        mock_get_container: MagicMock,
+    ) -> None:
+        """compute_shop_score_task calls ComputeShopScoreUseCase."""
+        from src.app.infrastructure.celery.tasks import compute_shop_score_task
+
+        # Setup mocks
+        mock_result = MagicMock()
+        mock_result.page_id = "page-123"
+        mock_result.score = 75.5
+        mock_result.ads_activity_score = 85.0
+        mock_result.shopify_score = 70.0
+        mock_result.creative_quality_score = 60.0
+        mock_result.catalog_score = 55.0
+        mock_result.tier = "L"
+
+        mock_use_case = AsyncMock()
+        mock_use_case.execute.return_value = mock_result
+
+        mock_container = MagicMock()
+        mock_container.get_compute_shop_score_use_case = AsyncMock(
+            return_value=mock_use_case
+        )
+        mock_container.execution_context.return_value.__aenter__ = AsyncMock(
+            return_value=(MagicMock(), MagicMock())
+        )
+        mock_container.execution_context.return_value.__aexit__ = AsyncMock(
+            return_value=None
+        )
+
+        mock_get_container.return_value = mock_container
+
+        # Execute task
+        result = compute_shop_score_task.apply(
+            args=["page-123"]
+        ).get(timeout=5)
+
+        assert result["page_id"] == "page-123"
+        assert result["status"] == "completed"
+        assert result["score"] == 75.5
+        assert result["ads_activity_score"] == 85.0
+        assert result["shopify_score"] == 70.0
+        assert result["creative_quality_score"] == 60.0
+        assert result["catalog_score"] == 55.0
+        assert result["tier"] == "L"
+
+    @patch("src.app.infrastructure.celery.tasks.get_container")
+    @patch("src.app.infrastructure.celery.tasks.configure_logging")
+    def test_compute_shop_score_task_handles_low_score(
+        self,
+        mock_configure_logging: MagicMock,
+        mock_get_container: MagicMock,
+    ) -> None:
+        """compute_shop_score_task handles pages with low scores."""
+        from src.app.infrastructure.celery.tasks import compute_shop_score_task
+
+        # Setup mocks for a low-activity page
+        mock_result = MagicMock()
+        mock_result.page_id = "page-456"
+        mock_result.score = 15.0
+        mock_result.ads_activity_score = 10.0
+        mock_result.shopify_score = 20.0
+        mock_result.creative_quality_score = 15.0
+        mock_result.catalog_score = 10.0
+        mock_result.tier = "XS"
+
+        mock_use_case = AsyncMock()
+        mock_use_case.execute.return_value = mock_result
+
+        mock_container = MagicMock()
+        mock_container.get_compute_shop_score_use_case = AsyncMock(
+            return_value=mock_use_case
+        )
+        mock_container.execution_context.return_value.__aenter__ = AsyncMock(
+            return_value=(MagicMock(), MagicMock())
+        )
+        mock_container.execution_context.return_value.__aexit__ = AsyncMock(
+            return_value=None
+        )
+
+        mock_get_container.return_value = mock_container
+
+        # Execute task
+        result = compute_shop_score_task.apply(
+            args=["page-456"]
+        ).get(timeout=5)
+
+        assert result["page_id"] == "page-456"
+        assert result["score"] == 15.0
+        assert result["tier"] == "XS"

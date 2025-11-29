@@ -23,6 +23,7 @@ from .entities import (
     KeywordRun,
     KeywordRunStatus,
     KeywordRunResult,
+    ShopScore,
 )
 
 from .value_objects import (
@@ -88,6 +89,7 @@ __all__ = [
     "KeywordRun",
     "KeywordRunStatus",
     "KeywordRunResult",
+    "ShopScore",
     # Value Objects
     "Url",
     "Country",

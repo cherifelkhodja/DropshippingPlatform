@@ -9,6 +9,7 @@ from src.app.infrastructure.db.models.blacklisted_page_model import BlacklistedP
 from src.app.infrastructure.db.models.keyword_run_model import KeywordRunModel
 from src.app.infrastructure.db.models.page_model import PageModel
 from src.app.infrastructure.db.models.scan_model import ScanModel
+from src.app.infrastructure.db.models.shop_score_model import ShopScoreModel
 
 __all__ = [
     "Base",
@@ -17,4 +18,5 @@ __all__ = [
     "ScanModel",
     "KeywordRunModel",
     "BlacklistedPageModel",
+    "ShopScoreModel",
 ]

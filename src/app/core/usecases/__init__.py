@@ -32,6 +32,10 @@ from .extract_product_count import (
     ExtractProductCountUseCase,
     ExtractProductCountResult,
 )
+from .compute_shop_score import (
+    ComputeShopScoreUseCase,
+    ComputeShopScoreResult,
+)
 
 __all__ = [
     # Search Ads
@@ -50,4 +54,7 @@ __all__ = [
     # Extract Product Count
     "ExtractProductCountUseCase",
     "ExtractProductCountResult",
+    # Compute Shop Score
+    "ComputeShopScoreUseCase",
+    "ComputeShopScoreResult",
 ]
