@@ -990,16 +990,89 @@ Client HTTP → FastAPI Router → Use Cases → Ports → Adapters → DB / Ext
 
 ---
 
+### Sprint 2.1 — Hardening & Cleanup
+
+**Objectif** : Durcissement et nettoyage avant Sprint 3 - pas de nouvelles features, uniquement robustesse & propreté.
+
+**Livrables** :
+
+#### Étape 1 — Celery Tasks connectées aux Use Cases (P0)
+- [x] Création de `WorkerContainer` (`infrastructure/celery/container.py`)
+  - Construction des dépendances (DB sessions, HTTP clients, repos)
+  - Injection des Use Cases dans les workers
+- [x] Remplacement des placeholders dans les tasks :
+  - `scan_page_task` → `AnalysePageDeepUseCase`
+  - `analyse_website_task` → `AnalyseWebsiteUseCase`
+  - `count_sitemap_products_task` → `ExtractProductCountUseCase`
+- [x] Conversion paramètres string → Value Objects (Country, ScanId, Url)
+- [x] Gestion des erreurs avec logging structuré
+
+#### Étape 2 — LoggingPort Adapter (P1)
+- [x] Création de `StandardLoggingAdapter` (`infrastructure/logging/logger_adapter.py`)
+  - Implémente `LoggingPort` via `logging.Logger`
+  - Support du contexte structuré via `extra`
+- [x] Configuration globale du logging (`infrastructure/logging/config.py`)
+  - Niveau par défaut INFO
+  - Format timestamp | level | name | message
+  - Réduction du bruit des libs tierces
+- [x] Remplacement de `SimpleLogger` dans `dependencies.py`
+- [x] Suppression des `print()` dans `main.py`
+
+#### Étape 3 — Simplification DI (P2)
+- [x] Refactoring des factories de Use Cases pour utiliser les dépendances injectées
+  - `get_search_ads_use_case(page_repo: PageRepo, keyword_run_repo: KeywordRunRepo, ...)`
+  - Plus de ré-instanciation de repositories
+- [x] Loggers nommés par use case (`usecase.search_ads`, etc.)
+- [x] Code plus explicite et testable
+
+#### Étape 4 — Documentation AsyncTask (P2)
+- [x] Documentation du pattern dans `tasks.py` (docstrings détaillées)
+- [x] Explication des trade-offs :
+  - Simplicité vs overhead (nouveau loop par tâche)
+  - Isolation entre tâches
+  - Acceptable pour la charge actuelle
+- [x] TODO documenté pour évolution future (arq, pool event loop)
+
+#### Étape 5 — Admin API Security (P2/P3)
+- [x] `SecuritySettings` dans `runtime_settings.py`
+  - `SECURITY_ADMIN_API_KEY` pour authentification
+- [x] Dépendance `get_admin_auth` dans `dependencies.py`
+  - Validation header `X-Admin-Api-Key`
+  - Mode développement si pas de clé configurée
+- [x] Protection de toutes les routes admin via `dependencies=[Depends(get_admin_auth)]`
+- [x] Tests d'intégration pour 401 sans/mauvaise clé, 200 avec bonne clé
+
+#### Architecture Decision: AsyncTask Event Loop Pattern
+
+| | |
+|---|---|
+| **Decision** | Créer un nouveau event loop par tâche Celery |
+| **Contexte** | Celery workers sync, use cases async |
+| **Trade-offs** | + Simplicité, + Isolation, - Overhead (acceptable) |
+| **Alternative future** | arq worker async natif si volumétrie explose |
+
+**Tests** :
+- Tests unitaires logging adapter (10 tests)
+- Tests unitaires admin auth (5 tests)
+- Tests d'intégration admin auth (6 tests)
+- Tests Celery tasks mockés (structure en place)
+
+**Commits** :
+- `chore(sprint-2.1): harden task system, logging, DI and admin security`
+
+---
+
 ### Sprint 3 — (À venir)
 
-**Objectif** : UI/Dashboard, filtres avancés, observabilité, sécurité
+**Objectif** : UI/Dashboard, filtres avancés, observabilité
 
 **Planification** :
 - [ ] Admin Dashboard (front-end minimal ou API-driven)
 - [ ] Filtres avancés + scoring des shops
-- [ ] Observabilité (metrics Prometheus, logs structurés, tracing)
-- [ ] Sécurité & Auth (API keys / JWT)
+- [ ] Observabilité (metrics Prometheus, tracing OpenTelemetry)
 - [ ] E2E tests complets
+
+**Note** : Sécurité admin (API keys) a été traitée en Sprint 2.1.
 
 ---
 

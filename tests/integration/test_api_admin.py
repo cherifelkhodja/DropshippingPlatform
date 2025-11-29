@@ -1,11 +1,16 @@
-"""Integration tests for admin API endpoints."""
+"""Integration tests for admin API endpoints.
 
-from unittest.mock import AsyncMock
+Tests include authentication handling via X-Admin-Api-Key header.
+"""
+
+from typing import Generator
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
 
 from src.app.api.dependencies import (
+    get_app_settings,
     get_keyword_run_repository,
     get_page_repository,
     get_scan_repository,
@@ -36,15 +41,51 @@ def mock_scan_repo() -> AsyncMock:
 
 
 @pytest.fixture
+def mock_settings_no_auth() -> MagicMock:
+    """Create mock settings with no admin auth configured."""
+    settings = MagicMock()
+    settings.security.admin_api_key = None
+    return settings
+
+
+@pytest.fixture
+def mock_settings_with_auth() -> MagicMock:
+    """Create mock settings with admin auth configured."""
+    settings = MagicMock()
+    settings.security.admin_api_key = "test-admin-key"
+    return settings
+
+
+@pytest.fixture
 def client(
     mock_page_repo: AsyncMock,
     mock_keyword_run_repo: AsyncMock,
     mock_scan_repo: AsyncMock,
-) -> TestClient:
-    """Create a test client with mocked dependencies."""
+    mock_settings_no_auth: MagicMock,
+) -> Generator[TestClient, None, None]:
+    """Create a test client with mocked dependencies (no auth required)."""
     app.dependency_overrides[get_page_repository] = lambda: mock_page_repo
     app.dependency_overrides[get_keyword_run_repository] = lambda: mock_keyword_run_repo
     app.dependency_overrides[get_scan_repository] = lambda: mock_scan_repo
+    app.dependency_overrides[get_app_settings] = lambda: mock_settings_no_auth
+
+    yield TestClient(app)
+
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def client_with_auth(
+    mock_page_repo: AsyncMock,
+    mock_keyword_run_repo: AsyncMock,
+    mock_scan_repo: AsyncMock,
+    mock_settings_with_auth: MagicMock,
+) -> Generator[TestClient, None, None]:
+    """Create a test client with admin auth required."""
+    app.dependency_overrides[get_page_repository] = lambda: mock_page_repo
+    app.dependency_overrides[get_keyword_run_repository] = lambda: mock_keyword_run_repo
+    app.dependency_overrides[get_scan_repository] = lambda: mock_scan_repo
+    app.dependency_overrides[get_app_settings] = lambda: mock_settings_with_auth
 
     yield TestClient(app)
 
@@ -242,3 +283,89 @@ class TestAdminScansEndpoint:
         data = response.json()
         assert data["offset"] == 10
         assert data["limit"] == 25
+
+
+class TestAdminAuthentication:
+    """Tests for admin API authentication."""
+
+    def test_access_without_header_when_auth_required(
+        self, client_with_auth: TestClient, mock_page_repo: AsyncMock
+    ) -> None:
+        """Returns 401 when no API key header is provided and auth is required."""
+        mock_page_repo.list_all.return_value = []
+
+        response = client_with_auth.get("/api/v1/admin/pages/active")
+
+        assert response.status_code == 401
+        assert "Missing" in response.json()["detail"]
+
+    def test_access_with_wrong_key(
+        self, client_with_auth: TestClient, mock_page_repo: AsyncMock
+    ) -> None:
+        """Returns 401 when wrong API key is provided."""
+        mock_page_repo.list_all.return_value = []
+
+        response = client_with_auth.get(
+            "/api/v1/admin/pages/active",
+            headers={"X-Admin-Api-Key": "wrong-key"},
+        )
+
+        assert response.status_code == 401
+        assert "Invalid" in response.json()["detail"]
+
+    def test_access_with_correct_key(
+        self, client_with_auth: TestClient, mock_page_repo: AsyncMock
+    ) -> None:
+        """Returns 200 when correct API key is provided."""
+        mock_page_repo.list_all.return_value = []
+
+        response = client_with_auth.get(
+            "/api/v1/admin/pages/active",
+            headers={"X-Admin-Api-Key": "test-admin-key"},
+        )
+
+        assert response.status_code == 200
+
+    def test_access_without_header_when_no_auth_configured(
+        self, client: TestClient, mock_page_repo: AsyncMock
+    ) -> None:
+        """Returns 200 when no auth is configured (dev mode)."""
+        mock_page_repo.list_all.return_value = []
+
+        response = client.get("/api/v1/admin/pages/active")
+
+        assert response.status_code == 200
+
+    def test_keywords_endpoint_requires_auth(
+        self, client_with_auth: TestClient, mock_keyword_run_repo: AsyncMock
+    ) -> None:
+        """Keywords endpoint also requires auth."""
+        mock_keyword_run_repo.list_recent.return_value = []
+
+        # Without header
+        response = client_with_auth.get("/api/v1/admin/keywords/recent")
+        assert response.status_code == 401
+
+        # With correct header
+        response = client_with_auth.get(
+            "/api/v1/admin/keywords/recent",
+            headers={"X-Admin-Api-Key": "test-admin-key"},
+        )
+        assert response.status_code == 200
+
+    def test_scans_endpoint_requires_auth(
+        self, client_with_auth: TestClient, mock_scan_repo: AsyncMock
+    ) -> None:
+        """Scans endpoint also requires auth."""
+        mock_scan_repo.list_scans.return_value = []
+
+        # Without header
+        response = client_with_auth.get("/api/v1/admin/scans")
+        assert response.status_code == 401
+
+        # With correct header
+        response = client_with_auth.get(
+            "/api/v1/admin/scans",
+            headers={"X-Admin-Api-Key": "test-admin-key"},
+        )
+        assert response.status_code == 200
