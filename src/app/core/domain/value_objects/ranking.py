@@ -1,12 +1,17 @@
 """Ranking Value Objects.
 
 Value objects for ranking criteria and related ranking domain concepts.
+
+Note:
+    Tier definitions and score ranges are managed by the central tiering module
+    (core/domain/tiering.py). This module imports from there to ensure consistency.
 """
 
 from dataclasses import dataclass
 from typing import ClassVar
 
 from ..errors import DomainError
+from ..tiering import TIER_SCORE_RANGES, VALID_TIERS, tier_to_score_range
 
 
 class InvalidRankingCriteriaError(DomainError):
@@ -16,25 +21,9 @@ class InvalidRankingCriteriaError(DomainError):
         super().__init__(message="Invalid ranking criteria", value=reason)
 
 
-# Valid tier values based on ShopScore.tier property
-VALID_TIERS: frozenset[str] = frozenset({"XS", "S", "M", "L", "XL", "XXL"})
-
-# Tier to score range mapping (min_score inclusive, max_score exclusive for lower tiers)
-# Based on ShopScore.tier property:
-# - XXL: >= 85
-# - XL: >= 70 and < 85
-# - L: >= 55 and < 70
-# - M: >= 40 and < 55
-# - S: >= 25 and < 40
-# - XS: < 25
-TIER_SCORE_RANGES: dict[str, tuple[float, float]] = {
-    "XXL": (85.0, 100.0),
-    "XL": (70.0, 85.0),
-    "L": (55.0, 70.0),
-    "M": (40.0, 55.0),
-    "S": (25.0, 40.0),
-    "XS": (0.0, 25.0),
-}
+# Re-export for backwards compatibility (consumers may import from here)
+# These are now sourced from core/domain/tiering.py
+__all__ = ["RankingCriteria", "InvalidRankingCriteriaError", "VALID_TIERS", "TIER_SCORE_RANGES"]
 
 
 @dataclass(frozen=True)
@@ -106,12 +95,15 @@ class RankingCriteria:
     def get_tier_score_range(self) -> tuple[float, float] | None:
         """Get the score range for the current tier filter.
 
+        Uses the central tiering module (core/domain/tiering.py) for
+        tier-to-score-range conversion.
+
         Returns:
             Tuple of (min_score, max_score) for the tier, or None if no tier filter.
         """
         if self.tier is None:
             return None
-        return TIER_SCORE_RANGES.get(self.tier)
+        return tier_to_score_range(self.tier)
 
     def __eq__(self, other: object) -> bool:
         """Check equality based on all criteria fields."""

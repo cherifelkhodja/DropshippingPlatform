@@ -5,6 +5,11 @@ Tests cover three main scenarios:
 1. High-activity shop (expected score ~80-100)
 2. Medium-activity shop (expected score ~40-70)
 3. Low-activity shop (expected score <30)
+
+Additionally includes "snapshot" tests that serve as guard-rails
+for the scoring formula, alerting on significant changes:
+- test_snapshot_scoring_high_winner: Premium shop scoring XXL tier
+- test_snapshot_scoring_dead_shop: Inactive shop scoring XS tier
 """
 
 import pytest
@@ -623,3 +628,210 @@ class TestShopScoreTier:
 
         score = ShopScore.create(id="2", page_id="p1", score=0.0)
         assert score.tier == "XS"
+
+
+class TestScoringSnapshots:
+    """Snapshot tests for ComputeShopScoreUseCase.
+
+    These tests serve as guard-rails against unintended changes to the
+    scoring formula. They test specific scenarios with well-defined
+    expected score ranges and tier assignments.
+
+    If these tests fail after a code change, it indicates that the
+    scoring behavior has changed and should be reviewed for correctness.
+
+    The tiering logic is sourced from core/domain/tiering.py which is
+    the single source of truth for tier definitions.
+    """
+
+    @pytest.fixture
+    def use_case(
+        self,
+        fake_page_repo: FakePageRepository,
+        fake_ads_repo: FakeAdsRepository,
+        fake_scoring_repo: FakeScoringRepository,
+        fake_logger: FakeLoggingPort,
+    ) -> ComputeShopScoreUseCase:
+        """Create use case with mocked dependencies."""
+        return ComputeShopScoreUseCase(
+            page_repository=fake_page_repo,
+            ads_repository=fake_ads_repo,
+            scoring_repository=fake_scoring_repo,
+            logger=fake_logger,
+        )
+
+    @pytest.mark.asyncio
+    async def test_snapshot_scoring_high_winner(
+        self,
+        use_case: ComputeShopScoreUseCase,
+        fake_page_repo: FakePageRepository,
+        fake_ads_repo: FakeAdsRepository,
+    ) -> None:
+        """Snapshot test: Premium high-performing shop should score XXL tier.
+
+        This test represents an ideal "winner" shop with:
+        - Strong advertising presence (60+ ads across multiple countries/platforms)
+        - Confirmed Shopify store with premium currency (EUR/USD/GBP/AUD)
+        - High-quality creative content (emojis, CTAs, discount indicators)
+        - Large product catalog (300+ products)
+
+        Expected behavior:
+        - Global score: 85 <= score <= 100
+        - Tier: XXL
+
+        If this test fails, review the scoring formula changes to ensure
+        high-quality shops are still properly recognized.
+        """
+        # Setup: Premium Shopify store with strong signals
+        page = Page(
+            id="snapshot-winner-page",
+            url=Url("https://premium-winner-store.com"),
+            domain="premium-winner-store.com",
+            is_shopify=True,
+            currency=Currency("EUR"),  # Strong premium currency
+            product_count=ProductCount(350),  # Large catalog
+            active_ads_count=60,
+            total_ads_count=120,
+        )
+        await fake_page_repo.save(page)
+
+        # High-diversity ad targeting
+        countries = [
+            Country("US"),
+            Country("FR"),
+            Country("DE"),
+            Country("GB"),
+            Country("AU"),
+        ]
+        platforms = [
+            AdPlatform.FACEBOOK,
+            AdPlatform.INSTAGRAM,
+            AdPlatform.MESSENGER,
+        ]
+
+        # High-quality creative content
+        ads = []
+        for i in range(60):
+            ad = Ad(
+                id=f"winner-ad-{i}",
+                page_id="snapshot-winner-page",
+                meta_page_id="meta-winner",
+                meta_ad_id=f"meta-winner-ad-{i}",
+                title=f"🔥 50% OFF! Shop Now! #{i}",  # Emoji + % + CTA
+                body="Get yours today! Limited offer. Buy now!",  # CTA phrases
+                cta_type="shop_now",
+                status=AdStatus.ACTIVE,
+                platforms=platforms,
+                countries=countries,
+            )
+            ads.append(ad)
+        await fake_ads_repo.save_many(ads)
+
+        # Execute
+        result = await use_case.execute("snapshot-winner-page")
+
+        # Snapshot assertions
+        assert 85 <= result.global_score <= 100, (
+            f"SNAPSHOT FAILURE: High-winner shop score {result.global_score} "
+            f"outside expected range [85, 100]. "
+            f"Components: {result.components}"
+        )
+        assert result.tier == "XXL", (
+            f"SNAPSHOT FAILURE: High-winner shop tier '{result.tier}' "
+            f"should be 'XXL' (score={result.global_score})"
+        )
+
+        # Component sanity checks (non-strict, for diagnostics)
+        assert result.components["ads_activity"] >= 90.0, (
+            f"Ads activity {result.components['ads_activity']} lower than expected"
+        )
+        assert result.components["shopify"] >= 80.0, (
+            f"Shopify score {result.components['shopify']} lower than expected"
+        )
+        assert result.components["creative_quality"] >= 80.0, (
+            f"Creative quality {result.components['creative_quality']} lower than expected"
+        )
+        assert result.components["catalog"] == 100.0, (
+            f"Catalog score {result.components['catalog']} should be 100 (350 products)"
+        )
+
+    @pytest.mark.asyncio
+    async def test_snapshot_scoring_dead_shop(
+        self,
+        use_case: ComputeShopScoreUseCase,
+        fake_page_repo: FakePageRepository,
+        fake_ads_repo: FakeAdsRepository,
+    ) -> None:
+        """Snapshot test: Inactive/dead shop should score XS tier.
+
+        This test represents a "dead" or abandoned shop with:
+        - Minimal advertising (0-1 ads)
+        - Not confirmed as Shopify
+        - No premium currency signals
+        - No active ads
+        - Poor creative quality (no text, no CTA)
+        - Very small or no product catalog
+
+        Expected behavior:
+        - Global score: <= 20
+        - Tier: XS
+
+        If this test fails, review the scoring formula changes to ensure
+        low-quality/inactive shops are still properly identified.
+        """
+        # Setup: Dead/abandoned store with minimal signals
+        page = Page(
+            id="snapshot-dead-page",
+            url=Url("https://dead-abandoned-store.com"),
+            domain="dead-abandoned-store.com",
+            is_shopify=False,  # Not Shopify
+            currency=None,  # No currency info
+            product_count=ProductCount(0),  # No products
+            active_ads_count=0,  # No active ads
+            total_ads_count=1,  # Only 1 historical ad
+        )
+        await fake_page_repo.save(page)
+
+        # Single poor-quality ad with no content
+        dead_ad = Ad(
+            id="dead-ad-0",
+            page_id="snapshot-dead-page",
+            meta_page_id="meta-dead",
+            meta_ad_id="meta-dead-ad-0",
+            title=None,  # No title
+            body=None,  # No body
+            cta_type=None,  # No CTA
+            status=AdStatus.INACTIVE,
+            platforms=[AdPlatform.FACEBOOK],  # Single platform
+            countries=[Country("US")],  # Single country
+        )
+        await fake_ads_repo.save_many([dead_ad])
+
+        # Execute
+        result = await use_case.execute("snapshot-dead-page")
+
+        # Snapshot assertions
+        assert result.global_score <= 20, (
+            f"SNAPSHOT FAILURE: Dead shop score {result.global_score} "
+            f"exceeds expected maximum of 20. "
+            f"Components: {result.components}"
+        )
+        assert result.tier == "XS", (
+            f"SNAPSHOT FAILURE: Dead shop tier '{result.tier}' "
+            f"should be 'XS' (score={result.global_score})"
+        )
+
+        # Component sanity checks (non-strict, for diagnostics)
+        # Note: Even 1 ad gives some score (~12), so we use 15 as threshold
+        assert result.components["ads_activity"] < 15.0, (
+            f"Ads activity {result.components['ads_activity']} too high for dead shop"
+        )
+        assert result.components["shopify"] <= 30.0, (
+            f"Shopify score {result.components['shopify']} too high (not Shopify, no ads)"
+        )
+        assert result.components["creative_quality"] == 0.0, (
+            f"Creative quality {result.components['creative_quality']} should be 0 (no content)"
+        )
+        assert result.components["catalog"] == 0.0, (
+            f"Catalog score {result.components['catalog']} should be 0 (no products)"
+        )
