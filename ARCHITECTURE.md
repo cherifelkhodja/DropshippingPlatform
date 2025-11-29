@@ -1,7 +1,7 @@
 # ARCHITECTURE & ENGINEERING GUIDELINES — Dropshipping Platform
 
-> **Version**: 1.0.0
-> **Dernière mise à jour**: Sprint 0.1
+> **Version**: 1.1.0
+> **Dernière mise à jour**: Sprint 1
 > **Mainteneur**: Tech Lead / Architecte
 
 ---
@@ -863,17 +863,74 @@ docs: add ARCHITECTURE.md (initial version)
 
 ---
 
-### Sprint 1 — (À venir)
+### Sprint 1 — Infrastructure & Adapters
 
-**Objectif** : Implémenter les adapters outbound
+**Objectif** : Implémenter les adapters outbound et l'infrastructure SaaS-ready
+
+**Livrables** :
+
+#### Étape 1 — Database Infrastructure
+- [x] SQLAlchemy 2.0 async configuration (`infrastructure/db/database.py`)
+- [x] ORM Models : PageModel, AdModel, ScanModel, KeywordRunModel, BlacklistedPageModel
+- [x] Configuration via `.env.example`
+
+#### Étape 2 — Domain ↔ ORM Mappers
+- [x] Bidirectional mappers (pure functions, no I/O)
+- [x] Full Value Object handling
+- [x] `page_mapper.py`, `ad_mapper.py`, `scan_mapper.py`, `keyword_run_mapper.py`
+
+#### Étape 3 — SQLAlchemy Repositories
+- [x] `PostgresPageRepository` implementing `PageRepository` port
+- [x] `PostgresAdsRepository` implementing `AdsRepository` port
+- [x] `PostgresScanRepository` implementing `ScanRepository` port
+- [x] `PostgresKeywordRunRepository` implementing `KeywordRunRepository` port
+
+#### Étape 4 — Meta Ads Client
+- [x] `MetaAdsClient` implementing `MetaAdsPort`
+- [x] aiohttp + Tenacity for retry with exponential backoff
+- [x] Pagination, rate limiting, error conversion to domain errors
+
+#### Étape 5 — HTTP Clients (HTML Scraper + Sitemap)
+- [x] `BaseHttpClient` for shared HTTP logic (retry, headers, errors)
+- [x] `HtmlScraperClient` implementing `HtmlScraperPort` (aiohttp + BeautifulSoup)
+- [x] `SitemapClient` implementing `SitemapPort` (aiohttp + lxml)
+- [x] NO Playwright — lightweight aiohttp approach
+
+#### Étape 6 — Full SaaS Infrastructure
+- [x] Docker Compose (postgres, app, mockserver services)
+- [x] Multi-stage Dockerfile (builder → development → production)
+- [x] Alembic async migrations with initial schema
+- [x] Pydantic v2 Settings (`runtime_settings.py`)
+- [x] GitHub Actions CI (lint, unit tests, integration tests)
+- [x] Makefile with dev workflow commands
+- [x] Integration tests for all adapters
+- [x] Flask mock server for testing
+
+#### Corrections Finales
+- [x] FastAPI minimal stub in `main.py` with `/health` endpoint
+- [x] `pyproject.toml` with runtime + dev dependencies (uv compatible)
+
+**Commits** :
+- `feat(sprint-1): add database infrastructure and ORM models`
+- `feat(sprint-1): add ORM ↔ domain mappers`
+- `feat(sprint-1): implement SQLAlchemy repositories`
+- `feat(sprint-1): implement Meta Ads client adapter`
+- `feat(sprint-1): add HTML scraper and Sitemap HTTP clients`
+- `feat(sprint-1): add infrastructure runtime, migrations, CI/CD and integration tests`
+- `chore(sprint-1): fix FastAPI entrypoint, add dependencies, update docs`
+
+---
+
+### Sprint 2 — (À venir)
+
+**Objectif** : Implémenter les adapters inbound (API FastAPI, Celery workers)
 
 **Planification** :
-- [ ] PostgreSQL Repositories (SQLAlchemy async)
-- [ ] Meta Ads API Client
-- [ ] HTML Scraper (Playwright)
-- [ ] Sitemap Parser
-- [ ] Configuration infrastructure (DB, settings)
-- [ ] Tests d'intégration
+- [ ] FastAPI endpoints (routes, schemas, dependencies)
+- [ ] TaskDispatcherPort implementation (Celery)
+- [ ] Admin Dashboard API (listing pages, scans, stats)
+- [ ] Structured logging implementation (structlog)
+- [ ] E2E tests
 
 ---
 
