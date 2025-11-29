@@ -457,24 +457,30 @@ DropshippingPlatform/
 
 ---
 
-## 5. NEXT STEPS (TODO — Sprint 5 Draft)
+## Sprint 5 – Monitoring & Alerts (terminé)
 
-| Priority | Task | Description |
-|----------|------|-------------|
-| **P0** | Admin Dashboard | Front-end minimal ou API-driven dashboard |
-| **P1** | Filtres avancés | Scoring des shops, filtres multicritères |
-| **P1** | Observabilité | Prometheus metrics, tracing OpenTelemetry |
-| **P2** | E2E Tests | Full scenario tests end-to-end |
+- Watchlists :
+  - Entités Watchlist & WatchlistItem, WatchlistRepository.
+  - Use cases CRUD (create/get/list/add/remove/list_items).
+  - API : /api/v1/watchlists (+ /items, /scan_now).
 
-**Note**: Admin API security (API keys) was completed in Sprint 2.1.
+- Rescans :
+  - RescoreWatchlistUseCase : déclenche compute_shop_score pour toutes les pages d’une watchlist.
+  - Task Celery rescore_all_watchlists_task : rescan quotidien de toutes les watchlists actives (scheduled à 3h UTC).
+  - Endpoint : POST /api/v1/watchlists/{id}/scan_now (202 Accepted + nombre de tasks dispatchées).
 
----
+- Alerts Engine v1 :
+  - Entité Alert + types :
+    - NEW_ADS_BOOST, SCORE_JUMP, SCORE_DROP, TIER_UP, TIER_DOWN.
+  - AlertRepository (save, list_by_page, list_recent).
+  - DetectAlertsForPageUseCase :
+    - Compare old_score/new_score, old_tier/new_tier, old_ads_count/new_ads_count.
+    - Crée des alertes avec message lisible et severity.
+  - Intégration dans compute_shop_score_task.
+  - API :
+    - GET /api/v1/alerts/{page_id} (limit, offset)
+    - GET /api/v1/alerts (recent global)
 
-## 6. UNCOMMITTED CODE
-
-*None — All Sprint 4.1 code has been committed.*
-
----
 
 ## 7. IMPORTANT CONVENTIONS
 
