@@ -37,6 +37,19 @@ from .compute_shop_score import (
     ComputeShopScoreResult,
 )
 from .get_ranked_shops import GetRankedShopsUseCase
+from .watchlists import (
+    CreateWatchlistUseCase,
+    GetWatchlistUseCase,
+    ListWatchlistsUseCase,
+    AddPageToWatchlistUseCase,
+    RemovePageFromWatchlistUseCase,
+    ListWatchlistItemsUseCase,
+    RescoreWatchlistUseCase,
+)
+from .detect_alerts_for_page import (
+    DetectAlertsForPageUseCase,
+    DetectAlertsInput,
+)
 
 __all__ = [
     # Search Ads
@@ -60,4 +73,15 @@ __all__ = [
     "ComputeShopScoreResult",
     # Get Ranked Shops
     "GetRankedShopsUseCase",
+    # Watchlists
+    "CreateWatchlistUseCase",
+    "GetWatchlistUseCase",
+    "ListWatchlistsUseCase",
+    "AddPageToWatchlistUseCase",
+    "RemovePageFromWatchlistUseCase",
+    "ListWatchlistItemsUseCase",
+    "RescoreWatchlistUseCase",
+    # Alerts
+    "DetectAlertsForPageUseCase",
+    "DetectAlertsInput",
 ]

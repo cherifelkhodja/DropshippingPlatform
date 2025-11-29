@@ -366,7 +366,7 @@ def compute_shop_score_task(
     self: AsyncTask,
     page_id: str,
 ) -> dict[str, Any]:
-    """Compute the score for a shop/page.
+    """Compute the score for a shop/page and detect alerts.
 
     Executes ComputeShopScoreUseCase to:
     1. Gather data about the page (ads, Shopify profile, products)
@@ -376,6 +376,7 @@ def compute_shop_score_task(
        - Creative Quality Score (20%)
        - Catalog Score (10%)
     3. Save the computed score to the database
+    4. Detect and persist alerts for significant changes
 
     Args:
         page_id: The page identifier to score.
@@ -394,13 +395,74 @@ def compute_shop_score_task(
     )
 
     async def _execute() -> dict[str, Any]:
+        from src.app.adapters.outbound.repositories.scoring_repository import (
+            PostgresScoringRepository,
+        )
+        from src.app.adapters.outbound.repositories.ads_repository import (
+            PostgresAdsRepository,
+        )
+        from src.app.core.usecases.detect_alerts_for_page import DetectAlertsInput
+
         container = get_container()
         async with container.execution_context() as (db_session, _http_session):
+            # Get previous score/tier before computing new one
+            scoring_repo = PostgresScoringRepository(db_session)
+            old_score_entity = await scoring_repo.get_latest_by_page_id(page_id)
+            old_score = old_score_entity.score if old_score_entity else None
+            old_tier = old_score_entity.tier if old_score_entity else None
+
+            # Get current ads count for alert detection
+            ads_repo = PostgresAdsRepository(db_session)
+            ads = await ads_repo.list_by_page(page_id)
+            new_ads_count = len(ads)
+
+            # For old_ads_count, we use a simple heuristic:
+            # If there's no previous score, there's no baseline
+            # In production, you might want to store ads_count in ShopScore
+            old_ads_count = None  # We don't track historical ads count yet
+
+            # Compute new score
             use_case = await container.get_compute_shop_score_use_case(
                 db_session=db_session,
             )
 
             result = await use_case.execute(page_id=page_id)
+
+            # Detect alerts (best effort - don't fail scoring on alert errors)
+            alerts_created = 0
+            try:
+                detect_alerts_uc = await container.get_detect_alerts_for_page_use_case(
+                    db_session=db_session,
+                )
+                input_data = DetectAlertsInput(
+                    page_id=page_id,
+                    new_score=result.score,
+                    new_tier=result.tier,
+                    new_ads_count=new_ads_count,
+                    old_score=old_score,
+                    old_tier=old_tier,
+                    old_ads_count=old_ads_count,
+                )
+                alerts = await detect_alerts_uc.execute(input_data)
+                alerts_created = len(alerts)
+
+                if alerts_created > 0:
+                    logger.info(
+                        "Alerts detected during scoring",
+                        extra={
+                            "page_id": page_id,
+                            "alerts_created": alerts_created,
+                            "alert_types": [a.type for a in alerts],
+                        },
+                    )
+            except Exception as alert_exc:
+                logger.warning(
+                    "Alert detection failed (scoring succeeded)",
+                    extra={
+                        "page_id": page_id,
+                        "error": str(alert_exc),
+                    },
+                )
 
             return {
                 "page_id": result.page_id,
@@ -411,6 +473,7 @@ def compute_shop_score_task(
                 "creative_quality_score": result.creative_quality_score,
                 "catalog_score": result.catalog_score,
                 "tier": result.tier,
+                "alerts_created": alerts_created,
             }
 
     try:
@@ -429,6 +492,115 @@ def compute_shop_score_task(
             "Shop score computation failed",
             extra={
                 "page_id": page_id,
+                "error": str(exc),
+            },
+            exc_info=True,
+        )
+        raise self.retry(exc=exc)
+
+
+@celery_app.task(
+    bind=True,
+    base=AsyncTask,
+    name="tasks.rescore_all_watchlists",
+    max_retries=1,
+    default_retry_delay=300,
+)
+def rescore_all_watchlists_task(
+    self: AsyncTask,
+) -> dict[str, Any]:
+    """Rescore all pages in all active watchlists.
+
+    Periodic task that iterates over all active watchlists and dispatches
+    compute_shop_score tasks for all pages in each watchlist.
+
+    This task is designed to be run on a schedule (e.g., daily) via
+    Celery Beat to keep shop scores up to date for watchlist members.
+
+    Returns:
+        Dict with summary of rescoring: total watchlists processed,
+        total tasks dispatched, and any errors encountered.
+    """
+    configure_logging(level="INFO")
+
+    logger.info(
+        "Starting rescore all watchlists task",
+        extra={
+            "task_id": self.request.id,
+        },
+    )
+
+    async def _execute() -> dict[str, Any]:
+        from src.app.adapters.outbound.repositories.watchlist_repository import (
+            PostgresWatchlistRepository,
+        )
+
+        container = get_container()
+        total_dispatched = 0
+        watchlists_processed = 0
+        errors: list[dict[str, str]] = []
+
+        async with container.execution_context() as (db_session, _http_session):
+            # Get all active watchlists
+            watchlist_repo = PostgresWatchlistRepository(db_session)
+            watchlists = await watchlist_repo.list_watchlists(limit=1000, offset=0)
+
+            logger.info(
+                "Found watchlists to rescore",
+                extra={"count": len(watchlists)},
+            )
+
+            for watchlist in watchlists:
+                try:
+                    use_case = await container.get_rescore_watchlist_use_case(
+                        db_session=db_session,
+                    )
+                    dispatched = await use_case.execute(watchlist_id=watchlist.id)
+                    total_dispatched += dispatched
+                    watchlists_processed += 1
+                    logger.debug(
+                        "Rescored watchlist",
+                        extra={
+                            "watchlist_id": watchlist.id,
+                            "watchlist_name": watchlist.name,
+                            "dispatched": dispatched,
+                        },
+                    )
+                except Exception as exc:
+                    logger.error(
+                        "Failed to rescore watchlist",
+                        extra={
+                            "watchlist_id": watchlist.id,
+                            "error": str(exc),
+                        },
+                    )
+                    errors.append({
+                        "watchlist_id": watchlist.id,
+                        "error": str(exc),
+                    })
+
+        return {
+            "status": "completed",
+            "watchlists_found": len(watchlists),
+            "watchlists_processed": watchlists_processed,
+            "total_tasks_dispatched": total_dispatched,
+            "errors": errors,
+        }
+
+    try:
+        result = self.run_async(_execute())
+        logger.info(
+            "Rescore all watchlists completed",
+            extra={
+                "result": result,
+            },
+        )
+        return result
+
+    except Exception as exc:
+        logger.error(
+            "Rescore all watchlists failed",
+            extra={
                 "error": str(exc),
             },
             exc_info=True,

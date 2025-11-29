@@ -5,7 +5,17 @@ Interfaces for data persistence operations.
 
 from typing import Protocol, Sequence
 
-from ..domain.entities import Page, Ad, Scan, KeywordRun, ShopScore, RankedShop
+from ..domain.entities import (
+    Page,
+    Ad,
+    Scan,
+    KeywordRun,
+    ShopScore,
+    RankedShop,
+    Watchlist,
+    WatchlistItem,
+    Alert,
+)
 from ..domain.value_objects import ScanId, RankingCriteria
 
 
@@ -282,6 +292,176 @@ class ScoringRepository(Protocol):
 
         Returns:
             Total count of shops matching the filter criteria.
+
+        Raises:
+            RepositoryError: On database errors.
+        """
+        ...
+
+
+class WatchlistRepository(Protocol):
+    """Port interface for Watchlist entity persistence.
+
+    Defines the contract for storing and retrieving Watchlist and
+    WatchlistItem entities.
+    """
+
+    async def create_watchlist(self, watchlist: Watchlist) -> Watchlist:
+        """Create a new watchlist.
+
+        Args:
+            watchlist: The Watchlist entity to create.
+
+        Returns:
+            The created Watchlist entity.
+
+        Raises:
+            RepositoryError: On database errors.
+        """
+        ...
+
+    async def get_watchlist(self, watchlist_id: str) -> Watchlist | None:
+        """Retrieve a watchlist by its ID.
+
+        Args:
+            watchlist_id: The unique watchlist identifier.
+
+        Returns:
+            The Watchlist entity if found, None otherwise.
+
+        Raises:
+            RepositoryError: On database errors.
+        """
+        ...
+
+    async def list_watchlists(
+        self, limit: int = 50, offset: int = 0
+    ) -> list[Watchlist]:
+        """List all watchlists.
+
+        Returns watchlists ordered by created_at descending (newest first).
+
+        Args:
+            limit: Maximum number of watchlists to return.
+            offset: Number of watchlists to skip.
+
+        Returns:
+            List of Watchlist entities.
+
+        Raises:
+            RepositoryError: On database errors.
+        """
+        ...
+
+    async def add_item(self, item: WatchlistItem) -> WatchlistItem:
+        """Add a page to a watchlist.
+
+        Args:
+            item: The WatchlistItem entity to add.
+
+        Returns:
+            The created WatchlistItem entity.
+
+        Raises:
+            RepositoryError: On database errors.
+        """
+        ...
+
+    async def remove_item(self, watchlist_id: str, page_id: str) -> None:
+        """Remove a page from a watchlist.
+
+        Args:
+            watchlist_id: The watchlist identifier.
+            page_id: The page identifier to remove.
+
+        Raises:
+            RepositoryError: On database errors.
+        """
+        ...
+
+    async def list_items(self, watchlist_id: str) -> list[WatchlistItem]:
+        """List all items in a watchlist.
+
+        Returns items ordered by created_at ascending (oldest first).
+
+        Args:
+            watchlist_id: The watchlist identifier.
+
+        Returns:
+            List of WatchlistItem entities.
+
+        Raises:
+            RepositoryError: On database errors.
+        """
+        ...
+
+    async def is_page_in_watchlist(self, watchlist_id: str, page_id: str) -> bool:
+        """Check if a page is already in a watchlist.
+
+        Args:
+            watchlist_id: The watchlist identifier.
+            page_id: The page identifier.
+
+        Returns:
+            True if the page is in the watchlist, False otherwise.
+
+        Raises:
+            RepositoryError: On database errors.
+        """
+        ...
+
+
+class AlertRepository(Protocol):
+    """Port interface for Alert entity persistence.
+
+    Defines the contract for storing and retrieving Alert entities
+    created during shop rescoring operations.
+    """
+
+    async def save(self, alert: Alert) -> Alert:
+        """Save a new alert.
+
+        Args:
+            alert: The Alert entity to save.
+
+        Returns:
+            The saved Alert entity.
+
+        Raises:
+            RepositoryError: On database errors.
+        """
+        ...
+
+    async def list_by_page(
+        self, page_id: str, limit: int = 50, offset: int = 0
+    ) -> list[Alert]:
+        """List all alerts for a specific page.
+
+        Returns alerts ordered by created_at descending (newest first).
+
+        Args:
+            page_id: The page identifier to filter by.
+            limit: Maximum number of alerts to return.
+            offset: Number of alerts to skip.
+
+        Returns:
+            List of Alert entities for the page.
+
+        Raises:
+            RepositoryError: On database errors.
+        """
+        ...
+
+    async def list_recent(self, limit: int = 100) -> list[Alert]:
+        """List recent alerts across all pages.
+
+        Returns alerts ordered by created_at descending (newest first).
+
+        Args:
+            limit: Maximum number of alerts to return.
+
+        Returns:
+            List of recent Alert entities.
 
         Raises:
             RepositoryError: On database errors.

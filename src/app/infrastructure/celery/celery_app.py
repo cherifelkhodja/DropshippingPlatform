@@ -4,6 +4,7 @@ Configures the Celery application for async task processing.
 """
 
 from celery import Celery
+from celery.schedules import crontab
 
 from ..settings.runtime_settings import get_settings
 
@@ -33,3 +34,12 @@ celery_app.conf.update(
     worker_prefetch_multiplier=1,
     worker_concurrency=4,
 )
+
+# Celery Beat Schedule for periodic tasks
+celery_app.conf.beat_schedule = {
+    "rescore-all-watchlists-daily": {
+        "task": "tasks.rescore_all_watchlists",
+        "schedule": crontab(hour=3, minute=0),  # Run daily at 3:00 AM UTC
+        "options": {"queue": "default"},
+    },
+}

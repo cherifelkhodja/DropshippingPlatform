@@ -13,10 +13,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.app.api.routers import (
     admin_router,
+    alerts_router,
     health_router,
     keywords_router,
     pages_router,
     scans_router,
+    watchlists_router,
 )
 from src.app.api.exceptions import register_exception_handlers
 from src.app.infrastructure.logging.config import configure_logging
@@ -98,10 +100,12 @@ def create_app() -> FastAPI:
 
     # Include routers
     app.include_router(health_router)
+    app.include_router(alerts_router, prefix="/api/v1")
     app.include_router(keywords_router, prefix="/api/v1")
     app.include_router(pages_router, prefix="/api/v1")
     app.include_router(scans_router, prefix="/api/v1")
     app.include_router(admin_router, prefix="/api/v1")
+    app.include_router(watchlists_router, prefix="/api/v1")
 
     return app
 

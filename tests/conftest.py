@@ -16,6 +16,8 @@ from src.app.core.domain import (
     ScanType,
     KeywordRun,
     ShopScore,
+    Watchlist,
+    WatchlistItem,
     Url,
     Country,
     Language,
@@ -24,6 +26,7 @@ from src.app.core.domain import (
     ProductCount,
     Category,
 )
+from src.app.core.domain.entities.alert import Alert
 from src.app.core.ports import (
     MetaAdsPort,
     HtmlScraperPort,
@@ -377,6 +380,98 @@ class FakeTaskDispatcher:
             }
         )
 
+    async def dispatch_compute_shop_score(
+        self,
+        page_id: str,
+    ) -> str:
+        """Dispatch a compute shop score task."""
+        import uuid
+        task_id = str(uuid.uuid4())
+        self.dispatched_tasks.append(
+            {
+                "type": "compute_shop_score",
+                "page_id": page_id,
+                "task_id": task_id,
+            }
+        )
+        return task_id
+
+
+class FakeWatchlistRepository:
+    """Fake watchlist repository for testing."""
+
+    def __init__(self) -> None:
+        self.watchlists: dict[str, Watchlist] = {}
+        self.items: list[WatchlistItem] = []
+
+    async def create_watchlist(self, watchlist: Watchlist) -> Watchlist:
+        self.watchlists[watchlist.id] = watchlist
+        return watchlist
+
+    async def get_watchlist(self, watchlist_id: str) -> Watchlist | None:
+        return self.watchlists.get(watchlist_id)
+
+    async def list_watchlists(
+        self, limit: int = 50, offset: int = 0
+    ) -> list[Watchlist]:
+        sorted_watchlists = sorted(
+            [w for w in self.watchlists.values() if w.is_active],
+            key=lambda w: w.created_at,
+            reverse=True,
+        )
+        return sorted_watchlists[offset : offset + limit]
+
+    async def add_item(self, item: WatchlistItem) -> WatchlistItem:
+        self.items.append(item)
+        return item
+
+    async def remove_item(self, watchlist_id: str, page_id: str) -> None:
+        self.items = [
+            i for i in self.items
+            if not (i.watchlist_id == watchlist_id and i.page_id == page_id)
+        ]
+
+    async def list_items(self, watchlist_id: str) -> list[WatchlistItem]:
+        return sorted(
+            [i for i in self.items if i.watchlist_id == watchlist_id],
+            key=lambda i: i.created_at,
+        )
+
+    async def is_page_in_watchlist(self, watchlist_id: str, page_id: str) -> bool:
+        return any(
+            i.watchlist_id == watchlist_id and i.page_id == page_id
+            for i in self.items
+        )
+
+
+class FakeAlertRepository:
+    """Fake alert repository for testing."""
+
+    def __init__(self) -> None:
+        self.alerts: list[Alert] = []
+
+    async def save(self, alert: Alert) -> Alert:
+        self.alerts.append(alert)
+        return alert
+
+    async def list_by_page(
+        self, page_id: str, limit: int = 50, offset: int = 0
+    ) -> list[Alert]:
+        page_alerts = sorted(
+            [a for a in self.alerts if a.page_id == page_id],
+            key=lambda a: a.created_at,
+            reverse=True,
+        )
+        return page_alerts[offset : offset + limit]
+
+    async def list_recent(self, limit: int = 100) -> list[Alert]:
+        sorted_alerts = sorted(
+            self.alerts,
+            key=lambda a: a.created_at,
+            reverse=True,
+        )
+        return sorted_alerts[:limit]
+
 
 # =============================================================================
 # Port Fixtures
@@ -451,3 +546,15 @@ def mock_sitemap_port() -> AsyncMock:
     mock.get_sitemap_urls.return_value = []
     mock.extract_product_count.return_value = ProductCount(0)
     return mock
+
+
+@pytest.fixture
+def fake_watchlist_repo() -> FakeWatchlistRepository:
+    """Return a fake watchlist repository."""
+    return FakeWatchlistRepository()
+
+
+@pytest.fixture
+def fake_alert_repo() -> FakeAlertRepository:
+    """Return a fake alert repository."""
+    return FakeAlertRepository()
