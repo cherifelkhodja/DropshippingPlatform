@@ -1,13 +1,14 @@
 """Watchlist Use Cases.
 
-CRUD operations for managing watchlists and their items.
+CRUD operations for managing watchlists and their items,
+plus rescoring functionality.
 """
 
 from uuid import uuid4
 
 from ..domain.entities import Watchlist, WatchlistItem
 from ..domain.errors import EntityNotFoundError
-from ..ports import LoggingPort, WatchlistRepository
+from ..ports import LoggingPort, WatchlistRepository, TaskDispatcherPort
 
 
 class CreateWatchlistUseCase:
@@ -362,3 +363,97 @@ class ListWatchlistItemsUseCase:
         )
 
         return items
+
+
+class RescoreWatchlistUseCase:
+    """Use case for rescoring all pages in a watchlist.
+
+    Dispatches compute_shop_score tasks for all pages in the watchlist
+    to recalculate their scores based on current data.
+    """
+
+    def __init__(
+        self,
+        watchlist_repository: WatchlistRepository,
+        task_dispatcher: TaskDispatcherPort,
+        logger: LoggingPort,
+    ) -> None:
+        """Initialize the use case.
+
+        Args:
+            watchlist_repository: Repository for Watchlist entities.
+            task_dispatcher: Port for dispatching async tasks.
+            logger: Logging port for structured logging.
+        """
+        self._watchlist_repo = watchlist_repository
+        self._task_dispatcher = task_dispatcher
+        self._logger = logger
+
+    async def execute(self, watchlist_id: str) -> int:
+        """Execute the rescore watchlist use case.
+
+        Dispatches compute_shop_score tasks for all pages in the watchlist.
+
+        Args:
+            watchlist_id: The watchlist identifier to rescore.
+
+        Returns:
+            The number of tasks dispatched.
+
+        Raises:
+            EntityNotFoundError: If the watchlist does not exist.
+        """
+        self._logger.info(
+            "Starting rescore for watchlist",
+            watchlist_id=watchlist_id,
+        )
+
+        # Verify watchlist exists
+        watchlist = await self._watchlist_repo.get_watchlist(watchlist_id)
+        if watchlist is None:
+            self._logger.warning(
+                "Watchlist not found for rescoring",
+                watchlist_id=watchlist_id,
+            )
+            raise EntityNotFoundError("Watchlist", watchlist_id)
+
+        # Get all items in the watchlist
+        items = await self._watchlist_repo.list_items(watchlist_id)
+
+        if not items:
+            self._logger.info(
+                "Watchlist is empty, no tasks to dispatch",
+                watchlist_id=watchlist_id,
+            )
+            return 0
+
+        # Dispatch compute_shop_score for each page
+        dispatched_count = 0
+        for item in items:
+            try:
+                await self._task_dispatcher.dispatch_compute_shop_score(
+                    page_id=item.page_id,
+                )
+                dispatched_count += 1
+                self._logger.debug(
+                    "Dispatched compute_shop_score task",
+                    watchlist_id=watchlist_id,
+                    page_id=item.page_id,
+                )
+            except Exception as exc:
+                self._logger.error(
+                    "Failed to dispatch compute_shop_score task",
+                    watchlist_id=watchlist_id,
+                    page_id=item.page_id,
+                    error=str(exc),
+                )
+                # Continue with other items even if one fails
+
+        self._logger.info(
+            "Rescore completed for watchlist",
+            watchlist_id=watchlist_id,
+            items_count=len(items),
+            dispatched_count=dispatched_count,
+        )
+
+        return dispatched_count

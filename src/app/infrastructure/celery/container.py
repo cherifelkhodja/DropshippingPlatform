@@ -31,10 +31,14 @@ from src.app.adapters.outbound.repositories.scoring_repository import (
 from src.app.adapters.outbound.scraper.html_scraper import HtmlScraperClient
 from src.app.adapters.outbound.sitemap.sitemap_client import SitemapClient
 from src.app.adapters.outbound.tasks.celery_task_dispatcher import CeleryTaskDispatcher
+from src.app.adapters.outbound.repositories.watchlist_repository import (
+    PostgresWatchlistRepository,
+)
 from src.app.core.usecases.analyse_page_deep import AnalysePageDeepUseCase
 from src.app.core.usecases.analyse_website import AnalyseWebsiteUseCase
 from src.app.core.usecases.compute_shop_score import ComputeShopScoreUseCase
 from src.app.core.usecases.extract_product_count import ExtractProductCountUseCase
+from src.app.core.usecases.watchlists import RescoreWatchlistUseCase
 from src.app.infrastructure.logging.logger_adapter import StandardLoggingAdapter
 from src.app.infrastructure.settings.runtime_settings import get_settings
 
@@ -285,6 +289,24 @@ class WorkerContainer:
             ads_repository=PostgresAdsRepository(db_session),
             scoring_repository=PostgresScoringRepository(db_session),
             logger=self._get_logger("compute_shop_score"),
+        )
+
+    async def get_rescore_watchlist_use_case(
+        self,
+        db_session: AsyncSession,
+    ) -> RescoreWatchlistUseCase:
+        """Create the RescoreWatchlist use case with all dependencies.
+
+        Args:
+            db_session: Database session for repositories.
+
+        Returns:
+            RescoreWatchlistUseCase: Configured use case instance.
+        """
+        return RescoreWatchlistUseCase(
+            watchlist_repository=PostgresWatchlistRepository(db_session),
+            task_dispatcher=self._get_task_dispatcher(),
+            logger=self._get_logger("rescore_watchlist"),
         )
 
     @asynccontextmanager

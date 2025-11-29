@@ -149,6 +149,28 @@ class WatchlistItemListResponse(BaseModel):
     }
 
 
+class RescoreWatchlistResponse(BaseModel):
+    """Response for rescoring a watchlist."""
+
+    watchlist_id: str = Field(description="The watchlist that was rescored")
+    tasks_dispatched: int = Field(
+        description="Number of compute_shop_score tasks dispatched"
+    )
+    message: str = Field(description="Status message")
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "watchlist_id": "550e8400-e29b-41d4-a716-446655440000",
+                    "tasks_dispatched": 25,
+                    "message": "Dispatched 25 scoring tasks for watchlist",
+                }
+            ]
+        }
+    }
+
+
 # =============================================================================
 # Converter Functions
 # =============================================================================

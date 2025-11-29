@@ -13,6 +13,7 @@ from src.app.api.schemas.watchlists import (
     WatchlistItemRequest,
     WatchlistItemResponse,
     WatchlistItemListResponse,
+    RescoreWatchlistResponse,
     watchlist_to_response,
     watchlist_item_to_response,
 )
@@ -23,6 +24,7 @@ from src.app.api.dependencies import (
     AddPageToWatchlistUC,
     RemovePageFromWatchlistUC,
     ListWatchlistItemsUC,
+    RescoreWatchlistUC,
 )
 
 router = APIRouter(prefix="/watchlists", tags=["Watchlists"])
@@ -178,3 +180,35 @@ async def remove_page_from_watchlist(
         page_id=page_id,
     )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/{watchlist_id}/scan_now",
+    response_model=RescoreWatchlistResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Trigger rescore for watchlist",
+    description="Dispatch compute_shop_score tasks for all pages in the watchlist.",
+    responses={
+        202: {"description": "Rescoring tasks dispatched successfully"},
+        404: {"model": ErrorResponse, "description": "Watchlist not found"},
+        500: {"model": ErrorResponse, "description": "Task dispatch error"},
+    },
+)
+async def scan_now(
+    watchlist_id: str,
+    rescore_uc: RescoreWatchlistUC,
+) -> RescoreWatchlistResponse:
+    """Trigger an immediate rescore for all pages in a watchlist.
+
+    Dispatches compute_shop_score background tasks for each page in the
+    watchlist. The actual scoring happens asynchronously.
+
+    Returns the number of tasks dispatched (one per page in the watchlist).
+    """
+    tasks_dispatched = await rescore_uc.execute(watchlist_id=watchlist_id)
+
+    return RescoreWatchlistResponse(
+        watchlist_id=watchlist_id,
+        tasks_dispatched=tasks_dispatched,
+        message=f"Dispatched {tasks_dispatched} scoring tasks for watchlist",
+    )

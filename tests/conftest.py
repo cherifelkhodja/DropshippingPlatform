@@ -379,6 +379,22 @@ class FakeTaskDispatcher:
             }
         )
 
+    async def dispatch_compute_shop_score(
+        self,
+        page_id: str,
+    ) -> str:
+        """Dispatch a compute shop score task."""
+        import uuid
+        task_id = str(uuid.uuid4())
+        self.dispatched_tasks.append(
+            {
+                "type": "compute_shop_score",
+                "page_id": page_id,
+                "task_id": task_id,
+            }
+        )
+        return task_id
+
 
 class FakeWatchlistRepository:
     """Fake watchlist repository for testing."""

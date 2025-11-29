@@ -435,3 +435,165 @@ class TestWatchlistResponseSchema:
             assert data["description"] is None or isinstance(data["description"], str)
             assert isinstance(data["created_at"], str)  # ISO format datetime
             assert isinstance(data["is_active"], bool)
+
+
+class TestScanNowEndpoint:
+    """Tests for POST /watchlists/{id}/scan_now endpoint."""
+
+    @pytest.fixture
+    def sample_watchlist(self) -> Watchlist:
+        """Create a sample watchlist for testing."""
+        return Watchlist(
+            id="watchlist-001",
+            name="Top FR Winners",
+            description="French stores with high scores",
+            created_at=datetime(2024, 3, 20, 15, 45, 0),
+            is_active=True,
+        )
+
+    @pytest.fixture
+    def sample_watchlist_items(self) -> list[WatchlistItem]:
+        """Create sample watchlist items for testing."""
+        return [
+            WatchlistItem(
+                id=f"item-00{i}",
+                watchlist_id="watchlist-001",
+                page_id=f"page-00{i}",
+                created_at=datetime(2024, 3, 20, 16, i, 0),
+            )
+            for i in range(1, 4)
+        ]
+
+    def test_scan_now_success(
+        self,
+        mock_database,
+        sample_watchlist: Watchlist,
+        sample_watchlist_items: list[WatchlistItem],
+    ) -> None:
+        """POST /watchlists/{id}/scan_now dispatches scoring tasks."""
+        from src.app.api import dependencies
+
+        # Clear the lru_cache for get_task_dispatcher
+        dependencies.get_task_dispatcher.cache_clear()
+
+        mock_watchlist_repo = AsyncMock()
+        mock_watchlist_repo.get_watchlist.return_value = sample_watchlist
+        mock_watchlist_repo.list_items.return_value = sample_watchlist_items
+
+        mock_task_dispatcher = AsyncMock()
+        mock_task_dispatcher.dispatch_compute_shop_score.return_value = "task-id-123"
+
+        with patch(
+            "src.app.api.dependencies.PostgresWatchlistRepository",
+            return_value=mock_watchlist_repo,
+        ), patch(
+            "src.app.api.dependencies.CeleryTaskDispatcher",
+            return_value=mock_task_dispatcher,
+        ):
+            from src.app.main import create_app
+
+            app = create_app()
+            client = TestClient(app)
+
+            response = client.post("/api/v1/watchlists/watchlist-001/scan_now")
+
+            assert response.status_code == 202
+            data = response.json()
+            assert data["watchlist_id"] == "watchlist-001"
+            assert data["tasks_dispatched"] == 3
+            assert "message" in data
+
+    def test_scan_now_empty_watchlist(
+        self,
+        mock_database,
+        sample_watchlist: Watchlist,
+    ) -> None:
+        """POST /watchlists/{id}/scan_now returns 0 for empty watchlist."""
+        mock_watchlist_repo = AsyncMock()
+        mock_watchlist_repo.get_watchlist.return_value = sample_watchlist
+        mock_watchlist_repo.list_items.return_value = []
+
+        mock_task_dispatcher = AsyncMock()
+
+        with patch(
+            "src.app.api.dependencies.PostgresWatchlistRepository",
+            return_value=mock_watchlist_repo,
+        ), patch(
+            "src.app.api.dependencies.get_task_dispatcher",
+            return_value=mock_task_dispatcher,
+        ):
+            from src.app.main import create_app
+
+            app = create_app()
+            client = TestClient(app)
+
+            response = client.post("/api/v1/watchlists/watchlist-001/scan_now")
+
+            assert response.status_code == 202
+            data = response.json()
+            assert data["tasks_dispatched"] == 0
+            mock_task_dispatcher.dispatch_compute_shop_score.assert_not_called()
+
+    def test_scan_now_not_found(self, mock_database) -> None:
+        """POST /watchlists/{id}/scan_now returns 404 for nonexistent watchlist."""
+        mock_watchlist_repo = AsyncMock()
+        mock_watchlist_repo.get_watchlist.return_value = None
+
+        with patch(
+            "src.app.api.dependencies.PostgresWatchlistRepository",
+            return_value=mock_watchlist_repo,
+        ):
+            from src.app.main import create_app
+
+            app = create_app()
+            client = TestClient(app)
+
+            response = client.post("/api/v1/watchlists/nonexistent/scan_now")
+
+            assert response.status_code == 404
+
+    def test_scan_now_response_structure(
+        self,
+        mock_database,
+        sample_watchlist: Watchlist,
+        sample_watchlist_items: list[WatchlistItem],
+    ) -> None:
+        """Scan now response contains all expected fields."""
+        from src.app.api import dependencies
+
+        # Clear the lru_cache for get_task_dispatcher
+        dependencies.get_task_dispatcher.cache_clear()
+
+        mock_watchlist_repo = AsyncMock()
+        mock_watchlist_repo.get_watchlist.return_value = sample_watchlist
+        mock_watchlist_repo.list_items.return_value = sample_watchlist_items
+
+        mock_task_dispatcher = AsyncMock()
+        mock_task_dispatcher.dispatch_compute_shop_score.return_value = "task-id"
+
+        with patch(
+            "src.app.api.dependencies.PostgresWatchlistRepository",
+            return_value=mock_watchlist_repo,
+        ), patch(
+            "src.app.api.dependencies.CeleryTaskDispatcher",
+            return_value=mock_task_dispatcher,
+        ):
+            from src.app.main import create_app
+
+            app = create_app()
+            client = TestClient(app)
+
+            response = client.post("/api/v1/watchlists/watchlist-001/scan_now")
+
+            assert response.status_code == 202
+            data = response.json()
+
+            # Verify all expected fields
+            assert "watchlist_id" in data
+            assert "tasks_dispatched" in data
+            assert "message" in data
+
+            # Verify field types
+            assert isinstance(data["watchlist_id"], str)
+            assert isinstance(data["tasks_dispatched"], int)
+            assert isinstance(data["message"], str)

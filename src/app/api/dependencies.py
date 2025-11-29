@@ -66,6 +66,7 @@ from src.app.core.usecases.watchlists import (
     AddPageToWatchlistUseCase,
     RemovePageFromWatchlistUseCase,
     ListWatchlistItemsUseCase,
+    RescoreWatchlistUseCase,
 )
 from src.app.infrastructure.celery.celery_app import celery_app
 from src.app.infrastructure.db.database import Database, DatabaseConfig
@@ -526,6 +527,18 @@ def get_list_watchlist_items_use_case(
     )
 
 
+def get_rescore_watchlist_use_case(
+    watchlist_repo: WatchlistRepo,
+    task_dispatcher: TaskDispatcher,
+) -> RescoreWatchlistUseCase:
+    """Get RescoreWatchlist use case."""
+    return RescoreWatchlistUseCase(
+        watchlist_repository=watchlist_repo,
+        task_dispatcher=task_dispatcher,
+        logger=get_logger("usecase.rescore_watchlist"),
+    )
+
+
 # Type aliases for watchlist use cases
 CreateWatchlistUC = Annotated[
     CreateWatchlistUseCase,
@@ -550,4 +563,8 @@ RemovePageFromWatchlistUC = Annotated[
 ListWatchlistItemsUC = Annotated[
     ListWatchlistItemsUseCase,
     Depends(get_list_watchlist_items_use_case),
+]
+RescoreWatchlistUC = Annotated[
+    RescoreWatchlistUseCase,
+    Depends(get_rescore_watchlist_use_case),
 ]

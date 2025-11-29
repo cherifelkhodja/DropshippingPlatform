@@ -13,8 +13,9 @@ from src.app.core.usecases.watchlists import (
     AddPageToWatchlistUseCase,
     RemovePageFromWatchlistUseCase,
     ListWatchlistItemsUseCase,
+    RescoreWatchlistUseCase,
 )
-from tests.conftest import FakeLoggingPort, FakeWatchlistRepository
+from tests.conftest import FakeLoggingPort, FakeWatchlistRepository, FakeTaskDispatcher
 
 
 class TestCreateWatchlistUseCase:
@@ -418,3 +419,122 @@ class TestListWatchlistItemsUseCase:
             await use_case.execute("nonexistent-id")
 
         assert "Watchlist" in str(exc_info.value)
+
+
+class TestRescoreWatchlistUseCase:
+    """Tests for RescoreWatchlistUseCase."""
+
+    @pytest.fixture
+    def fake_task_dispatcher(self) -> FakeTaskDispatcher:
+        """Create a fake task dispatcher for testing."""
+        return FakeTaskDispatcher()
+
+    @pytest.fixture
+    def use_case(
+        self,
+        fake_watchlist_repo: FakeWatchlistRepository,
+        fake_task_dispatcher: FakeTaskDispatcher,
+        fake_logger: FakeLoggingPort,
+    ) -> RescoreWatchlistUseCase:
+        """Create use case instance with fake dependencies."""
+        return RescoreWatchlistUseCase(
+            watchlist_repository=fake_watchlist_repo,
+            task_dispatcher=fake_task_dispatcher,
+            logger=fake_logger,
+        )
+
+    @pytest.mark.asyncio
+    async def test_rescore_empty_watchlist(
+        self,
+        use_case: RescoreWatchlistUseCase,
+        fake_watchlist_repo: FakeWatchlistRepository,
+        fake_task_dispatcher: FakeTaskDispatcher,
+        fake_logger: FakeLoggingPort,
+    ) -> None:
+        """Should return 0 when watchlist is empty."""
+        # Create an empty watchlist
+        create_uc = CreateWatchlistUseCase(
+            watchlist_repository=fake_watchlist_repo,
+            logger=fake_logger,
+        )
+        watchlist = await create_uc.execute(name="Empty Watchlist")
+
+        result = await use_case.execute(watchlist.id)
+
+        assert result == 0
+        assert len(fake_task_dispatcher.dispatched_tasks) == 0
+
+    @pytest.mark.asyncio
+    async def test_rescore_watchlist_with_items(
+        self,
+        use_case: RescoreWatchlistUseCase,
+        fake_watchlist_repo: FakeWatchlistRepository,
+        fake_task_dispatcher: FakeTaskDispatcher,
+        fake_logger: FakeLoggingPort,
+    ) -> None:
+        """Should dispatch tasks for all pages in the watchlist."""
+        # Setup: create watchlist with items
+        create_uc = CreateWatchlistUseCase(
+            watchlist_repository=fake_watchlist_repo,
+            logger=fake_logger,
+        )
+        watchlist = await create_uc.execute(name="Test Watchlist")
+
+        add_uc = AddPageToWatchlistUseCase(
+            watchlist_repository=fake_watchlist_repo,
+            logger=fake_logger,
+        )
+        await add_uc.execute(watchlist_id=watchlist.id, page_id="page-1")
+        await add_uc.execute(watchlist_id=watchlist.id, page_id="page-2")
+        await add_uc.execute(watchlist_id=watchlist.id, page_id="page-3")
+
+        result = await use_case.execute(watchlist.id)
+
+        assert result == 3
+        assert len(fake_task_dispatcher.dispatched_tasks) == 3
+
+        # Verify all tasks are compute_shop_score type
+        for task in fake_task_dispatcher.dispatched_tasks:
+            assert task["type"] == "compute_shop_score"
+
+        # Verify all page IDs were dispatched
+        dispatched_page_ids = {task["page_id"] for task in fake_task_dispatcher.dispatched_tasks}
+        assert dispatched_page_ids == {"page-1", "page-2", "page-3"}
+
+    @pytest.mark.asyncio
+    async def test_rescore_nonexistent_watchlist_raises_error(
+        self,
+        use_case: RescoreWatchlistUseCase,
+    ) -> None:
+        """Should raise EntityNotFoundError for nonexistent watchlist."""
+        with pytest.raises(EntityNotFoundError) as exc_info:
+            await use_case.execute("nonexistent-id")
+
+        assert "Watchlist" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_rescore_returns_dispatched_count(
+        self,
+        use_case: RescoreWatchlistUseCase,
+        fake_watchlist_repo: FakeWatchlistRepository,
+        fake_task_dispatcher: FakeTaskDispatcher,
+        fake_logger: FakeLoggingPort,
+    ) -> None:
+        """Should return exact count of dispatched tasks."""
+        create_uc = CreateWatchlistUseCase(
+            watchlist_repository=fake_watchlist_repo,
+            logger=fake_logger,
+        )
+        watchlist = await create_uc.execute(name="Test Watchlist")
+
+        add_uc = AddPageToWatchlistUseCase(
+            watchlist_repository=fake_watchlist_repo,
+            logger=fake_logger,
+        )
+        for i in range(5):
+            await add_uc.execute(watchlist_id=watchlist.id, page_id=f"page-{i}")
+
+        result = await use_case.execute(watchlist.id)
+
+        assert result == 5
+        assert len(fake_task_dispatcher.dispatched_tasks) == 5

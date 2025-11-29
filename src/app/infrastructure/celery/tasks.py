@@ -434,3 +434,112 @@ def compute_shop_score_task(
             exc_info=True,
         )
         raise self.retry(exc=exc)
+
+
+@celery_app.task(
+    bind=True,
+    base=AsyncTask,
+    name="tasks.rescore_all_watchlists",
+    max_retries=1,
+    default_retry_delay=300,
+)
+def rescore_all_watchlists_task(
+    self: AsyncTask,
+) -> dict[str, Any]:
+    """Rescore all pages in all active watchlists.
+
+    Periodic task that iterates over all active watchlists and dispatches
+    compute_shop_score tasks for all pages in each watchlist.
+
+    This task is designed to be run on a schedule (e.g., daily) via
+    Celery Beat to keep shop scores up to date for watchlist members.
+
+    Returns:
+        Dict with summary of rescoring: total watchlists processed,
+        total tasks dispatched, and any errors encountered.
+    """
+    configure_logging(level="INFO")
+
+    logger.info(
+        "Starting rescore all watchlists task",
+        extra={
+            "task_id": self.request.id,
+        },
+    )
+
+    async def _execute() -> dict[str, Any]:
+        from src.app.adapters.outbound.repositories.watchlist_repository import (
+            PostgresWatchlistRepository,
+        )
+
+        container = get_container()
+        total_dispatched = 0
+        watchlists_processed = 0
+        errors: list[dict[str, str]] = []
+
+        async with container.execution_context() as (db_session, _http_session):
+            # Get all active watchlists
+            watchlist_repo = PostgresWatchlistRepository(db_session)
+            watchlists = await watchlist_repo.list_watchlists(limit=1000, offset=0)
+
+            logger.info(
+                "Found watchlists to rescore",
+                extra={"count": len(watchlists)},
+            )
+
+            for watchlist in watchlists:
+                try:
+                    use_case = await container.get_rescore_watchlist_use_case(
+                        db_session=db_session,
+                    )
+                    dispatched = await use_case.execute(watchlist_id=watchlist.id)
+                    total_dispatched += dispatched
+                    watchlists_processed += 1
+                    logger.debug(
+                        "Rescored watchlist",
+                        extra={
+                            "watchlist_id": watchlist.id,
+                            "watchlist_name": watchlist.name,
+                            "dispatched": dispatched,
+                        },
+                    )
+                except Exception as exc:
+                    logger.error(
+                        "Failed to rescore watchlist",
+                        extra={
+                            "watchlist_id": watchlist.id,
+                            "error": str(exc),
+                        },
+                    )
+                    errors.append({
+                        "watchlist_id": watchlist.id,
+                        "error": str(exc),
+                    })
+
+        return {
+            "status": "completed",
+            "watchlists_found": len(watchlists),
+            "watchlists_processed": watchlists_processed,
+            "total_tasks_dispatched": total_dispatched,
+            "errors": errors,
+        }
+
+    try:
+        result = self.run_async(_execute())
+        logger.info(
+            "Rescore all watchlists completed",
+            extra={
+                "result": result,
+            },
+        )
+        return result
+
+    except Exception as exc:
+        logger.error(
+            "Rescore all watchlists failed",
+            extra={
+                "error": str(exc),
+            },
+            exc_info=True,
+        )
+        raise self.retry(exc=exc)

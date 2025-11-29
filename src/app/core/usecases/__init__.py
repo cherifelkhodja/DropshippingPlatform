@@ -44,6 +44,7 @@ from .watchlists import (
     AddPageToWatchlistUseCase,
     RemovePageFromWatchlistUseCase,
     ListWatchlistItemsUseCase,
+    RescoreWatchlistUseCase,
 )
 
 __all__ = [
@@ -75,4 +76,5 @@ __all__ = [
     "AddPageToWatchlistUseCase",
     "RemovePageFromWatchlistUseCase",
     "ListWatchlistItemsUseCase",
+    "RescoreWatchlistUseCase",
 ]
