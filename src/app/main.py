@@ -6,6 +6,7 @@ Main application configuration with routers, middleware, and exception handlers.
 from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
 
+import aiohttp
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -24,13 +25,29 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application lifespan handler.
 
     Handles startup and shutdown events.
+    Creates shared HTTP session for all external API calls.
     """
-    # Startup
     settings = get_settings()
     print(f"Starting {settings.name} v{settings.version} ({settings.environment})")
-    yield
-    # Shutdown
-    print("Shutting down...")
+
+    # Create shared HTTP session
+    connector = aiohttp.TCPConnector(limit=100, limit_per_host=10)
+    timeout = aiohttp.ClientTimeout(total=settings.scraper.default_timeout)
+    headers = {"User-Agent": settings.scraper.user_agent}
+
+    async with aiohttp.ClientSession(
+        connector=connector,
+        timeout=timeout,
+        headers=headers,
+    ) as http_session:
+        # Store in app.state for dependency injection
+        app.state.http_session = http_session
+        print("HTTP session initialized")
+
+        yield
+
+        # Cleanup on shutdown
+        print("Shutting down...")
 
 
 def create_app() -> FastAPI:

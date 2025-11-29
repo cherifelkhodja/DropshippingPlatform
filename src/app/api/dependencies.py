@@ -9,7 +9,7 @@ from functools import lru_cache
 from typing import Annotated, Any
 
 import aiohttp
-from fastapi import Depends
+from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.app.infrastructure.db.database import Database, DatabaseConfig
@@ -155,23 +155,19 @@ KeywordRunRepo = Annotated[PostgresKeywordRunRepository, Depends(get_keyword_run
 # =============================================================================
 
 
-async def get_http_session() -> AsyncGenerator[aiohttp.ClientSession, None]:
-    """Get aiohttp client session.
+def get_http_session(request: Request) -> aiohttp.ClientSession:
+    """Get shared HTTP session from app.state.
 
-    Yields:
-        aiohttp.ClientSession: HTTP client session that auto-closes.
+    The session is created in the application lifespan (main.py)
+    and stored in app.state.http_session.
+
+    Args:
+        request: FastAPI request object (provides access to app).
+
+    Returns:
+        aiohttp.ClientSession: Shared HTTP client session.
     """
-    settings = get_settings()
-    connector = aiohttp.TCPConnector(limit=100, limit_per_host=10)
-    timeout = aiohttp.ClientTimeout(total=settings.scraper.default_timeout)
-    headers = {"User-Agent": settings.scraper.user_agent}
-
-    async with aiohttp.ClientSession(
-        connector=connector,
-        timeout=timeout,
-        headers=headers,
-    ) as session:
-        yield session
+    return request.app.state.http_session
 
 
 HttpSession = Annotated[aiohttp.ClientSession, Depends(get_http_session)]

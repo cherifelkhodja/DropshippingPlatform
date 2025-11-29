@@ -122,17 +122,77 @@ async def meta_ads_error_handler(
     )
 
 
+async def scraping_blocked_handler(
+    request: Request,
+    exc: ScrapingBlockedError,
+) -> JSONResponse:
+    """Handle scraping blocked errors (403 Forbidden)."""
+    return JSONResponse(
+        status_code=status.HTTP_403_FORBIDDEN,
+        content=create_error_response(
+            error="ScrapingBlocked",
+            message=str(exc),
+            details={"url": exc.value},
+        ),
+    )
+
+
+async def scraping_timeout_handler(
+    request: Request,
+    exc: ScrapingTimeoutError,
+) -> JSONResponse:
+    """Handle scraping timeout errors (504 Gateway Timeout)."""
+    return JSONResponse(
+        status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+        content=create_error_response(
+            error="ScrapingTimeout",
+            message=str(exc),
+            details={"url": exc.value},
+        ),
+    )
+
+
 async def scraping_error_handler(
     request: Request,
     exc: ScrapingError,
 ) -> JSONResponse:
-    """Handle scraping errors (502 Bad Gateway)."""
+    """Handle generic scraping errors (502 Bad Gateway)."""
     return JSONResponse(
         status_code=status.HTTP_502_BAD_GATEWAY,
         content=create_error_response(
             error="ScrapingError",
             message=str(exc),
             details={"url": exc.value},
+        ),
+    )
+
+
+async def sitemap_not_found_handler(
+    request: Request,
+    exc: SitemapNotFoundError,
+) -> JSONResponse:
+    """Handle sitemap not found errors (404 Not Found)."""
+    return JSONResponse(
+        status_code=status.HTTP_404_NOT_FOUND,
+        content=create_error_response(
+            error="SitemapNotFound",
+            message=str(exc),
+            details={"website": exc.value},
+        ),
+    )
+
+
+async def sitemap_parsing_handler(
+    request: Request,
+    exc: SitemapParsingError,
+) -> JSONResponse:
+    """Handle sitemap parsing errors (422 Unprocessable Entity)."""
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content=create_error_response(
+            error="SitemapParsingError",
+            message=str(exc),
+            details={"sitemap_url": exc.value},
         ),
     )
 
@@ -180,19 +240,45 @@ async def generic_error_handler(
 
 
 def register_exception_handlers(app: FastAPI) -> None:
-    """Register all exception handlers on the FastAPI application."""
+    """Register all exception handlers on the FastAPI application.
+
+    Exception mappings:
+    - EntityNotFoundError → 404 Not Found
+    - MetaAdsRateLimitError → 429 Too Many Requests
+    - MetaAdsAuthenticationError → 401 Unauthorized
+    - MetaAdsApiError → 502 Bad Gateway
+    - ScrapingBlockedError → 403 Forbidden
+    - ScrapingTimeoutError → 504 Gateway Timeout
+    - ScrapingError → 502 Bad Gateway
+    - SitemapNotFoundError → 404 Not Found
+    - SitemapParsingError → 422 Unprocessable Entity
+    - RepositoryError → 500 Internal Server Error
+    - TaskDispatchError → 503 Service Unavailable
+    - DomainError (validation) → 400 Bad Request
+    """
     # Specific errors first (more specific to less specific)
+    # 404 Not Found
     app.add_exception_handler(EntityNotFoundError, entity_not_found_handler)
+    app.add_exception_handler(SitemapNotFoundError, sitemap_not_found_handler)
+
+    # 401/429 Meta Ads errors
     app.add_exception_handler(MetaAdsRateLimitError, meta_ads_rate_limit_handler)
     app.add_exception_handler(MetaAdsAuthenticationError, meta_ads_auth_handler)
     app.add_exception_handler(MetaAdsApiError, meta_ads_error_handler)
-    app.add_exception_handler(ScrapingTimeoutError, scraping_error_handler)
-    app.add_exception_handler(ScrapingBlockedError, scraping_error_handler)
+
+    # Scraping errors (403, 504, 502)
+    app.add_exception_handler(ScrapingBlockedError, scraping_blocked_handler)
+    app.add_exception_handler(ScrapingTimeoutError, scraping_timeout_handler)
     app.add_exception_handler(ScrapingError, scraping_error_handler)
+
+    # Sitemap parsing → 422
+    app.add_exception_handler(SitemapParsingError, sitemap_parsing_handler)
+
+    # Infrastructure errors
     app.add_exception_handler(RepositoryError, repository_error_handler)
     app.add_exception_handler(TaskDispatchError, task_dispatch_error_handler)
 
-    # Domain validation errors (400)
+    # Domain validation errors (400 Bad Request)
     validation_errors = [
         InvalidUrlError,
         InvalidCountryError,
@@ -203,8 +289,6 @@ def register_exception_handlers(app: FastAPI) -> None:
         InvalidCategoryError,
         InvalidScanIdError,
         InvalidPaymentMethodError,
-        SitemapNotFoundError,
-        SitemapParsingError,
     ]
     for error_class in validation_errors:
         app.add_exception_handler(error_class, domain_validation_error_handler)

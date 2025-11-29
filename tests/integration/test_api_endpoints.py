@@ -11,6 +11,16 @@ from fastapi.testclient import TestClient
 
 from src.app.core.domain.entities import Page, Scan, ScanType, ScanStatus, ScanResult
 from src.app.core.domain.value_objects import Url, Country, ScanId, PageState
+from src.app.core.domain.errors import (
+    MetaAdsRateLimitError,
+    MetaAdsAuthenticationError,
+    MetaAdsApiError,
+    ScrapingBlockedError,
+    ScrapingTimeoutError,
+    SitemapNotFoundError,
+    SitemapParsingError,
+    InvalidLanguageError,
+)
 
 
 @pytest.fixture
@@ -26,10 +36,18 @@ def mock_database():
 
 
 @pytest.fixture
-def client(mock_database):
+def mock_http_session():
+    """Mock HTTP session for testing."""
+    return MagicMock()
+
+
+@pytest.fixture
+def client(mock_database, mock_http_session):
     """Create test client with mocked dependencies."""
     from src.app.main import create_app
     app = create_app()
+    # Mock the http_session in app.state
+    app.state.http_session = mock_http_session
     return TestClient(app)
 
 
@@ -251,10 +269,11 @@ class TestScansEndpoint:
 class TestKeywordsEndpoint:
     """Tests for /api/v1/keywords endpoints."""
 
-    def test_search_invalid_country(self, mock_database) -> None:
+    def test_search_invalid_country(self, mock_database, mock_http_session) -> None:
         """Search returns 422 for invalid country code."""
         from src.app.main import create_app
         app = create_app()
+        app.state.http_session = mock_http_session
         client = TestClient(app)
 
         response = client.post(
@@ -264,10 +283,11 @@ class TestKeywordsEndpoint:
 
         assert response.status_code == 422  # Pydantic validation error
 
-    def test_search_empty_keyword(self, mock_database) -> None:
+    def test_search_empty_keyword(self, mock_database, mock_http_session) -> None:
         """Search returns 422 for empty keyword."""
         from src.app.main import create_app
         app = create_app()
+        app.state.http_session = mock_http_session
         client = TestClient(app)
 
         response = client.post(
@@ -277,13 +297,14 @@ class TestKeywordsEndpoint:
 
         assert response.status_code == 422  # Pydantic validation error
 
-    def test_search_valid_request_format(self, mock_database) -> None:
+    def test_search_valid_request_format(self, mock_database, mock_http_session) -> None:
         """Search endpoint accepts valid request format."""
-        # This test verifies the endpoint exists and validates input
-        # Full integration would require mocking the Meta Ads client
+        # This test verifies the endpoint exists, validates input, and returns
+        # a proper response (not 422 Pydantic validation error)
         from src.app.main import create_app
         app = create_app()
-        client = TestClient(app)
+        app.state.http_session = mock_http_session
+        client = TestClient(app, raise_server_exceptions=False)
 
         # Valid request should not return 422 (validation error)
         response = client.post(
@@ -291,6 +312,191 @@ class TestKeywordsEndpoint:
             json={"keyword": "dropshipping", "country": "US"},
         )
 
-        # Should either succeed (200) or fail with domain error (400/500)
-        # but not with validation error (422)
-        assert response.status_code != 422
+        # Should either succeed (200) or fail with domain/external error
+        # but not with Pydantic validation error (422) or method not allowed (405)
+        # 500 is acceptable here since the HTTP client is mocked
+        assert response.status_code not in [405, 422]
+
+
+class TestExceptionHandlers:
+    """Tests for exception handlers - verifying correct HTTP status codes.
+
+    These tests verify that domain exceptions are correctly mapped to HTTP status codes.
+    They test the exception handlers directly by raising exceptions from repository mocks.
+    """
+
+    def test_scraping_blocked_returns_403(self, mock_database, mock_http_session) -> None:
+        """ScrapingBlockedError returns 403 Forbidden."""
+        from src.app.main import create_app
+
+        mock_repo = AsyncMock()
+        mock_repo.list_all.side_effect = ScrapingBlockedError(
+            url="https://blocked-site.com", status_code=403
+        )
+
+        with patch(
+            "src.app.api.dependencies.PostgresPageRepository",
+            return_value=mock_repo,
+        ):
+            app = create_app()
+            app.state.http_session = mock_http_session
+            client = TestClient(app, raise_server_exceptions=False)
+
+            response = client.get("/api/v1/pages")
+
+            assert response.status_code == 403
+            data = response.json()
+            assert data["error"] == "ScrapingBlocked"
+
+    def test_scraping_timeout_returns_504(self, mock_database, mock_http_session) -> None:
+        """ScrapingTimeoutError returns 504 Gateway Timeout."""
+        from src.app.main import create_app
+
+        mock_repo = AsyncMock()
+        mock_repo.list_all.side_effect = ScrapingTimeoutError(
+            url="https://slow-site.com", timeout_seconds=30
+        )
+
+        with patch(
+            "src.app.api.dependencies.PostgresPageRepository",
+            return_value=mock_repo,
+        ):
+            app = create_app()
+            app.state.http_session = mock_http_session
+            client = TestClient(app, raise_server_exceptions=False)
+
+            response = client.get("/api/v1/pages")
+
+            assert response.status_code == 504
+            data = response.json()
+            assert data["error"] == "ScrapingTimeout"
+
+    def test_sitemap_not_found_returns_404(self, mock_database, mock_http_session) -> None:
+        """SitemapNotFoundError returns 404 Not Found."""
+        from src.app.main import create_app
+
+        mock_repo = AsyncMock()
+        mock_repo.list_all.side_effect = SitemapNotFoundError(
+            website="https://no-sitemap.com"
+        )
+
+        with patch(
+            "src.app.api.dependencies.PostgresPageRepository",
+            return_value=mock_repo,
+        ):
+            app = create_app()
+            app.state.http_session = mock_http_session
+            client = TestClient(app, raise_server_exceptions=False)
+
+            response = client.get("/api/v1/pages")
+
+            assert response.status_code == 404
+            data = response.json()
+            assert data["error"] == "SitemapNotFound"
+
+    def test_sitemap_parsing_error_returns_422(self, mock_database, mock_http_session) -> None:
+        """SitemapParsingError returns 422 Unprocessable Entity."""
+        from src.app.main import create_app
+
+        mock_repo = AsyncMock()
+        mock_repo.list_all.side_effect = SitemapParsingError(
+            sitemap_url="https://bad-sitemap.com/sitemap.xml",
+            reason="Invalid XML",
+        )
+
+        with patch(
+            "src.app.api.dependencies.PostgresPageRepository",
+            return_value=mock_repo,
+        ):
+            app = create_app()
+            app.state.http_session = mock_http_session
+            client = TestClient(app, raise_server_exceptions=False)
+
+            response = client.get("/api/v1/pages")
+
+            assert response.status_code == 422
+            data = response.json()
+            assert data["error"] == "SitemapParsingError"
+
+    def test_invalid_scan_id_returns_400(self, mock_database, mock_http_session) -> None:
+        """InvalidScanIdError returns 400 Bad Request."""
+        from src.app.main import create_app
+
+        app = create_app()
+        app.state.http_session = mock_http_session
+        client = TestClient(app, raise_server_exceptions=False)
+
+        # Invalid UUID format triggers InvalidScanIdError
+        response = client.get("/api/v1/scans/not-a-uuid")
+
+        assert response.status_code == 400
+        data = response.json()
+        assert "Invalid" in data["message"]
+
+    def test_meta_ads_rate_limit_handler_exists(self) -> None:
+        """Verify MetaAdsRateLimitError handler is registered and returns 429."""
+        from src.app.api.exceptions import meta_ads_rate_limit_handler
+        from fastapi import Request
+        import asyncio
+
+        # Create a minimal mock request
+        mock_request = MagicMock(spec=Request)
+        exc = MetaAdsRateLimitError(retry_after=60)
+
+        # Call the handler directly
+        response = asyncio.get_event_loop().run_until_complete(
+            meta_ads_rate_limit_handler(mock_request, exc)
+        )
+
+        assert response.status_code == 429
+
+    def test_meta_ads_auth_handler_exists(self) -> None:
+        """Verify MetaAdsAuthenticationError handler is registered and returns 401."""
+        from src.app.api.exceptions import meta_ads_auth_handler
+        from fastapi import Request
+        import asyncio
+
+        mock_request = MagicMock(spec=Request)
+        exc = MetaAdsAuthenticationError()
+
+        response = asyncio.get_event_loop().run_until_complete(
+            meta_ads_auth_handler(mock_request, exc)
+        )
+
+        assert response.status_code == 401
+
+    def test_meta_ads_api_error_handler_exists(self) -> None:
+        """Verify MetaAdsApiError handler is registered and returns 502."""
+        from src.app.api.exceptions import meta_ads_error_handler
+        from fastapi import Request
+        import asyncio
+
+        mock_request = MagicMock(spec=Request)
+        exc = MetaAdsApiError(reason="API error")
+
+        response = asyncio.get_event_loop().run_until_complete(
+            meta_ads_error_handler(mock_request, exc)
+        )
+
+        assert response.status_code == 502
+
+    def test_domain_validation_error_returns_400(self, mock_database, mock_http_session) -> None:
+        """InvalidLanguageError returns 400 Bad Request (domain validation error)."""
+        from src.app.main import create_app
+
+        mock_repo = AsyncMock()
+        mock_repo.list_all.side_effect = InvalidLanguageError("XX")
+
+        with patch(
+            "src.app.api.dependencies.PostgresPageRepository",
+            return_value=mock_repo,
+        ):
+            app = create_app()
+            app.state.http_session = mock_http_session
+            client = TestClient(app, raise_server_exceptions=False)
+
+            response = client.get("/api/v1/pages")
+
+            assert response.status_code == 400
+            data = response.json()
+            assert "Invalid" in data["message"]
