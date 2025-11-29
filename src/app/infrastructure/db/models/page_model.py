@@ -17,6 +17,7 @@ from src.app.infrastructure.db.models.base import Base
 if TYPE_CHECKING:
     from src.app.infrastructure.db.models.ad_model import AdModel
     from src.app.infrastructure.db.models.scan_model import ScanModel
+    from src.app.infrastructure.db.models.shop_score_model import ShopScoreModel
 
 
 class PageModel(Base):
@@ -89,6 +90,12 @@ class PageModel(Base):
     )
     scans: Mapped[list["ScanModel"]] = relationship(
         "ScanModel",
+        back_populates="page",
+        lazy="selectin",
+        cascade="all, delete-orphan",
+    )
+    shop_scores: Mapped[list["ShopScoreModel"]] = relationship(
+        "ShopScoreModel",
         back_populates="page",
         lazy="selectin",
         cascade="all, delete-orphan",

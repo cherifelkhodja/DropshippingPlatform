@@ -5,7 +5,7 @@ Interfaces for data persistence operations.
 
 from typing import Protocol, Sequence
 
-from ..domain.entities import Page, Ad, Scan, KeywordRun
+from ..domain.entities import Page, Ad, Scan, KeywordRun, ShopScore
 from ..domain.value_objects import ScanId
 
 
@@ -181,6 +181,56 @@ class KeywordRunRepository(Protocol):
 
         Returns:
             List of recent KeywordRun entities, ordered by creation date desc.
+
+        Raises:
+            RepositoryError: On database errors.
+        """
+        ...
+
+
+class ScoringRepository(Protocol):
+    """Port interface for ShopScore entity persistence.
+
+    Defines the contract for storing and retrieving ShopScore entities.
+    """
+
+    async def save(self, score: ShopScore) -> None:
+        """Save a shop score.
+
+        Args:
+            score: The ShopScore entity to save.
+
+        Raises:
+            RepositoryError: On database errors.
+        """
+        ...
+
+    async def get_latest_by_page_id(self, page_id: str) -> ShopScore | None:
+        """Retrieve the most recent score for a page.
+
+        Args:
+            page_id: The unique page identifier.
+
+        Returns:
+            The most recent ShopScore for the page, or None if no scores exist.
+
+        Raises:
+            RepositoryError: On database errors.
+        """
+        ...
+
+    async def list_top(self, limit: int = 50, offset: int = 0) -> list[ShopScore]:
+        """List top-scoring pages.
+
+        Returns scores ordered by score descending (highest first),
+        then by created_at descending for ties.
+
+        Args:
+            limit: Maximum number of scores to return.
+            offset: Number of scores to skip.
+
+        Returns:
+            List of ShopScore entities ordered by score descending.
 
         Raises:
             RepositoryError: On database errors.

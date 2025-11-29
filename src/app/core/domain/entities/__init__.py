@@ -9,6 +9,7 @@ from .ad import Ad, AdStatus, AdPlatform
 from .shopify_profile import ShopifyProfile, ShopifyTheme, ShopifyApp
 from .scan import Scan, ScanType, ScanStatus, ScanResult
 from .keyword_run import KeywordRun, KeywordRunStatus, KeywordRunResult
+from .shop_score import ShopScore
 
 __all__ = [
     # Page
@@ -30,4 +31,6 @@ __all__ = [
     "KeywordRun",
     "KeywordRunStatus",
     "KeywordRunResult",
+    # Shop Score
+    "ShopScore",
 ]

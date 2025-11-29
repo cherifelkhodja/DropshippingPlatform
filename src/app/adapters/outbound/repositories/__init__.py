@@ -15,10 +15,14 @@ from src.app.adapters.outbound.repositories.page_repository import (
 from src.app.adapters.outbound.repositories.scan_repository import (
     PostgresScanRepository,
 )
+from src.app.adapters.outbound.repositories.scoring_repository import (
+    PostgresScoringRepository,
+)
 
 __all__ = [
     "PostgresPageRepository",
     "PostgresAdsRepository",
     "PostgresScanRepository",
     "PostgresKeywordRunRepository",
+    "PostgresScoringRepository",
 ]
