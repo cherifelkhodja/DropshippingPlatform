@@ -9,23 +9,80 @@ from ..errors import InvalidCountryError
 
 
 # ISO 3166-1 alpha-2 country codes (subset of most common ones)
-VALID_COUNTRY_CODES: frozenset[str] = frozenset({
-    # Europe
-    "FR", "DE", "GB", "ES", "IT", "PT", "NL", "BE", "CH", "AT",
-    "PL", "SE", "NO", "DK", "FI", "IE", "GR", "CZ", "RO", "HU",
-    "SK", "BG", "HR", "SI", "LT", "LV", "EE", "LU", "MT", "CY",
-    # North America
-    "US", "CA", "MX",
-    # South America
-    "BR", "AR", "CL", "CO", "PE", "VE", "EC", "UY",
-    # Asia
-    "CN", "JP", "KR", "IN", "ID", "TH", "VN", "MY", "SG", "PH",
-    "TW", "HK", "AE", "SA", "IL", "TR",
-    # Oceania
-    "AU", "NZ",
-    # Africa
-    "ZA", "EG", "NG", "MA", "KE",
-})
+VALID_COUNTRY_CODES: frozenset[str] = frozenset(
+    {
+        # Europe
+        "FR",
+        "DE",
+        "GB",
+        "ES",
+        "IT",
+        "PT",
+        "NL",
+        "BE",
+        "CH",
+        "AT",
+        "PL",
+        "SE",
+        "NO",
+        "DK",
+        "FI",
+        "IE",
+        "GR",
+        "CZ",
+        "RO",
+        "HU",
+        "SK",
+        "BG",
+        "HR",
+        "SI",
+        "LT",
+        "LV",
+        "EE",
+        "LU",
+        "MT",
+        "CY",
+        # North America
+        "US",
+        "CA",
+        "MX",
+        # South America
+        "BR",
+        "AR",
+        "CL",
+        "CO",
+        "PE",
+        "VE",
+        "EC",
+        "UY",
+        # Asia
+        "CN",
+        "JP",
+        "KR",
+        "IN",
+        "ID",
+        "TH",
+        "VN",
+        "MY",
+        "SG",
+        "PH",
+        "TW",
+        "HK",
+        "AE",
+        "SA",
+        "IL",
+        "TR",
+        # Oceania
+        "AU",
+        "NZ",
+        # Africa
+        "ZA",
+        "EG",
+        "NG",
+        "MA",
+        "KE",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -53,7 +110,7 @@ class Country:
             raise InvalidCountryError(self.code)
 
         # Use object.__setattr__ since dataclass is frozen
-        object.__setattr__(self, 'code', normalized)
+        object.__setattr__(self, "code", normalized)
 
     def __str__(self) -> str:
         return self.code

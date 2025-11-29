@@ -14,12 +14,12 @@ from ..value_objects import Country, ScanId
 class KeywordRunStatus(Enum):
     """Enumeration of keyword run statuses."""
 
-    PENDING = "pending"              # Waiting to execute
-    RUNNING = "running"              # Currently executing
-    COMPLETED = "completed"          # Successfully completed
-    FAILED = "failed"                # Failed with error
-    CANCELLED = "cancelled"          # Cancelled
-    RATE_LIMITED = "rate_limited"    # Hit rate limit
+    PENDING = "pending"  # Waiting to execute
+    RUNNING = "running"  # Currently executing
+    COMPLETED = "completed"  # Successfully completed
+    FAILED = "failed"  # Failed with error
+    CANCELLED = "cancelled"  # Cancelled
+    RATE_LIMITED = "rate_limited"  # Hit rate limit
 
 
 @dataclass

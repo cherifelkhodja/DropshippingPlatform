@@ -8,7 +8,6 @@ from dataclasses import dataclass
 from ..domain import (
     Url,
     Country,
-    ProductCount,
     PageStatus,
     EntityNotFoundError,
     SitemapNotFoundError,
@@ -129,6 +128,7 @@ class ExtractProductCountUseCase:
 
         # Update page
         from ..domain import Page
+
         updated_page = Page(
             id=page.id,
             url=page.url,
@@ -151,10 +151,7 @@ class ExtractProductCountUseCase:
         )
 
         # Transition to ACTIVE if verified and has products
-        if (
-            page.state.status == PageStatus.VERIFIED_SHOPIFY
-            and int(product_count) > 0
-        ):
+        if page.state.status == PageStatus.VERIFIED_SHOPIFY and int(product_count) > 0:
             updated_page = updated_page.transition_state(PageStatus.ACTIVE)
 
         await self._page_repo.save(updated_page)

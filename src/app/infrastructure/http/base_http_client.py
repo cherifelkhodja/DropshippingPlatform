@@ -110,7 +110,9 @@ class BaseHttpClient:
                 url=url,
                 timeout_seconds=timeout_seconds,
             )
-            raise ScrapingTimeoutError(url=url, timeout_seconds=timeout_seconds) from exc
+            raise ScrapingTimeoutError(
+                url=url, timeout_seconds=timeout_seconds
+            ) from exc
 
         except aiohttp.ClientError as exc:
             self._logger.error(
@@ -166,7 +168,9 @@ class BaseHttpClient:
                 url=url,
                 timeout_seconds=timeout_seconds,
             )
-            raise ScrapingTimeoutError(url=url, timeout_seconds=timeout_seconds) from exc
+            raise ScrapingTimeoutError(
+                url=url, timeout_seconds=timeout_seconds
+            ) from exc
 
         except aiohttp.ClientError as exc:
             self._logger.error(

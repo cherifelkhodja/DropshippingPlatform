@@ -23,7 +23,9 @@ class TestHtmlScraperClient:
         assert "Shopify" in html
 
     @pytest.mark.asyncio
-    async def test_fetch_html_product_page(self, http_session, fake_logger, mock_server_url):
+    async def test_fetch_html_product_page(
+        self, http_session, fake_logger, mock_server_url
+    ):
         """Test fetching a product page."""
         scraper = HtmlScraperClient(session=http_session, logger=fake_logger)
         url = Url(value=f"{mock_server_url}/products/test-product")

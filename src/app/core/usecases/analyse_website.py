@@ -9,16 +9,11 @@ import uuid
 
 from ..domain import (
     Page,
-    PageStatus,
-    ShopifyProfile,
-    ShopifyTheme,
-    ShopifyApp,
     Url,
     Country,
     Currency,
     Category,
     PaymentMethod,
-    PaymentMethods,
     EntityNotFoundError,
 )
 from ..ports import (
@@ -68,20 +63,20 @@ class AnalyseWebsiteUseCase:
 
     # Shopify detection patterns
     SHOPIFY_PATTERNS = [
-        r'cdn\.shopify\.com',
-        r'Shopify\.theme',
-        r'shopify-section',
-        r'shopify\.com/services',
-        r'myshopify\.com',
+        r"cdn\.shopify\.com",
+        r"Shopify\.theme",
+        r"shopify-section",
+        r"shopify\.com/services",
+        r"myshopify\.com",
         r'"shopify"',
-        r'Shopify\.checkout',
+        r"Shopify\.checkout",
     ]
 
     # Theme detection patterns
     THEME_PATTERNS = [
-        (r'Shopify\.theme\s*=\s*\{[^}]*"name"\s*:\s*"([^"]+)"', 'name'),
-        (r'theme-([a-zA-Z0-9-]+)', 'class'),
-        (r'data-theme="([^"]+)"', 'data'),
+        (r'Shopify\.theme\s*=\s*\{[^}]*"name"\s*:\s*"([^"]+)"', "name"),
+        (r"theme-([a-zA-Z0-9-]+)", "class"),
+        (r'data-theme="([^"]+)"', "data"),
     ]
 
     # Currency detection patterns
@@ -93,26 +88,26 @@ class AnalyseWebsiteUseCase:
 
     # Payment method patterns
     PAYMENT_PATTERNS = {
-        PaymentMethod.PAYPAL: [r'paypal', r'pp-button'],
-        PaymentMethod.APPLE_PAY: [r'apple.?pay', r'apple-pay-button'],
-        PaymentMethod.GOOGLE_PAY: [r'google.?pay', r'gpay'],
-        PaymentMethod.SHOP_PAY: [r'shop.?pay', r'shopify.?pay'],
-        PaymentMethod.KLARNA: [r'klarna'],
-        PaymentMethod.AFTERPAY: [r'afterpay', r'clearpay'],
-        PaymentMethod.AFFIRM: [r'affirm'],
-        PaymentMethod.CREDIT_CARD: [r'credit.?card', r'visa', r'mastercard', r'amex'],
+        PaymentMethod.PAYPAL: [r"paypal", r"pp-button"],
+        PaymentMethod.APPLE_PAY: [r"apple.?pay", r"apple-pay-button"],
+        PaymentMethod.GOOGLE_PAY: [r"google.?pay", r"gpay"],
+        PaymentMethod.SHOP_PAY: [r"shop.?pay", r"shopify.?pay"],
+        PaymentMethod.KLARNA: [r"klarna"],
+        PaymentMethod.AFTERPAY: [r"afterpay", r"clearpay"],
+        PaymentMethod.AFFIRM: [r"affirm"],
+        PaymentMethod.CREDIT_CARD: [r"credit.?card", r"visa", r"mastercard", r"amex"],
     }
 
     # Category detection patterns
     CATEGORY_PATTERNS = {
-        "fashion": [r'fashion', r'clothing', r'apparel', r'wear', r'dress'],
-        "beauty": [r'beauty', r'cosmetic', r'skincare', r'makeup'],
-        "electronics": [r'electronic', r'gadget', r'tech', r'phone'],
-        "home": [r'home', r'furniture', r'decor', r'kitchen'],
-        "jewelry": [r'jewelry', r'jewellery', r'ring', r'necklace'],
-        "sports": [r'sport', r'fitness', r'gym', r'athletic'],
-        "pets": [r'pet', r'dog', r'cat', r'animal'],
-        "kids": [r'kid', r'baby', r'child', r'toy'],
+        "fashion": [r"fashion", r"clothing", r"apparel", r"wear", r"dress"],
+        "beauty": [r"beauty", r"cosmetic", r"skincare", r"makeup"],
+        "electronics": [r"electronic", r"gadget", r"tech", r"phone"],
+        "home": [r"home", r"furniture", r"decor", r"kitchen"],
+        "jewelry": [r"jewelry", r"jewellery", r"ring", r"necklace"],
+        "sports": [r"sport", r"fitness", r"gym", r"athletic"],
+        "pets": [r"pet", r"dog", r"cat", r"animal"],
+        "kids": [r"kid", r"baby", r"child", r"toy"],
     }
 
     def __init__(
@@ -314,7 +309,7 @@ class AnalyseWebsiteUseCase:
             r'<meta[^>]*property="og:site_name"[^>]*content="([^"]+)"',
             r'<meta[^>]*name="application-name"[^>]*content="([^"]+)"',
             r'"shop_name"\s*:\s*"([^"]+)"',
-            r'<title>([^<|]+)',
+            r"<title>([^<|]+)",
         ]
 
         for pattern in patterns:

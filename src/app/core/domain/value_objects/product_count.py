@@ -25,20 +25,17 @@ class ProductCount:
         """Validate product count after initialization."""
         if not isinstance(self.value, int):
             raise InvalidProductCountError(
-                self.value,
-                "Product count must be an integer"
+                self.value, "Product count must be an integer"
             )
 
         if self.value < 0:
             raise InvalidProductCountError(
-                self.value,
-                "Product count cannot be negative"
+                self.value, "Product count cannot be negative"
             )
 
         if self.value > self.MAX_PRODUCT_COUNT:
             raise InvalidProductCountError(
-                self.value,
-                f"Product count exceeds maximum ({self.MAX_PRODUCT_COUNT})"
+                self.value, f"Product count exceeds maximum ({self.MAX_PRODUCT_COUNT})"
             )
 
     @classmethod

@@ -11,7 +11,6 @@ from src.app.core.domain import (
     Page,
     Ad,
     AdStatus,
-    AdPlatform,
     ShopifyProfile,
     ShopifyTheme,
     ShopifyApp,
@@ -25,16 +24,10 @@ from src.app.core.domain import (
     # Value Objects
     Url,
     Country,
-    Language,
-    Currency,
     Category,
     PageStatus,
-    ScanId,
     ProductCount,
     PaymentMethods,
-    PaymentMethod,
-    # Errors
-    InvalidPageStateError,
 )
 
 
@@ -336,8 +329,12 @@ class TestAd:
 
     def test_ad_equality_by_id(self) -> None:
         """Test ad equality is by ID."""
-        ad1 = Ad.create(id="ad-1", page_id="page-1", meta_page_id="m1", meta_ad_id="ma1")
-        ad2 = Ad.create(id="ad-1", page_id="page-2", meta_page_id="m2", meta_ad_id="ma2")
+        ad1 = Ad.create(
+            id="ad-1", page_id="page-1", meta_page_id="m1", meta_ad_id="ma1"
+        )
+        ad2 = Ad.create(
+            id="ad-1", page_id="page-2", meta_page_id="m2", meta_ad_id="ma2"
+        )
         assert ad1 == ad2
 
 

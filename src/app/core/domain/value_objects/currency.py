@@ -9,45 +9,47 @@ from ..errors import InvalidCurrencyError
 
 
 # ISO 4217 currency codes (most common ones)
-VALID_CURRENCY_CODES: frozenset[str] = frozenset({
-    "USD",  # US Dollar
-    "EUR",  # Euro
-    "GBP",  # British Pound
-    "JPY",  # Japanese Yen
-    "CNY",  # Chinese Yuan
-    "CHF",  # Swiss Franc
-    "CAD",  # Canadian Dollar
-    "AUD",  # Australian Dollar
-    "NZD",  # New Zealand Dollar
-    "HKD",  # Hong Kong Dollar
-    "SGD",  # Singapore Dollar
-    "SEK",  # Swedish Krona
-    "NOK",  # Norwegian Krone
-    "DKK",  # Danish Krone
-    "KRW",  # South Korean Won
-    "INR",  # Indian Rupee
-    "RUB",  # Russian Ruble
-    "BRL",  # Brazilian Real
-    "MXN",  # Mexican Peso
-    "ZAR",  # South African Rand
-    "TRY",  # Turkish Lira
-    "PLN",  # Polish Zloty
-    "THB",  # Thai Baht
-    "IDR",  # Indonesian Rupiah
-    "MYR",  # Malaysian Ringgit
-    "PHP",  # Philippine Peso
-    "CZK",  # Czech Koruna
-    "ILS",  # Israeli Shekel
-    "AED",  # UAE Dirham
-    "SAR",  # Saudi Riyal
-    "ARS",  # Argentine Peso
-    "CLP",  # Chilean Peso
-    "COP",  # Colombian Peso
-    "VND",  # Vietnamese Dong
-    "TWD",  # Taiwan Dollar
-    "HUF",  # Hungarian Forint
-    "RON",  # Romanian Leu
-})
+VALID_CURRENCY_CODES: frozenset[str] = frozenset(
+    {
+        "USD",  # US Dollar
+        "EUR",  # Euro
+        "GBP",  # British Pound
+        "JPY",  # Japanese Yen
+        "CNY",  # Chinese Yuan
+        "CHF",  # Swiss Franc
+        "CAD",  # Canadian Dollar
+        "AUD",  # Australian Dollar
+        "NZD",  # New Zealand Dollar
+        "HKD",  # Hong Kong Dollar
+        "SGD",  # Singapore Dollar
+        "SEK",  # Swedish Krona
+        "NOK",  # Norwegian Krone
+        "DKK",  # Danish Krone
+        "KRW",  # South Korean Won
+        "INR",  # Indian Rupee
+        "RUB",  # Russian Ruble
+        "BRL",  # Brazilian Real
+        "MXN",  # Mexican Peso
+        "ZAR",  # South African Rand
+        "TRY",  # Turkish Lira
+        "PLN",  # Polish Zloty
+        "THB",  # Thai Baht
+        "IDR",  # Indonesian Rupiah
+        "MYR",  # Malaysian Ringgit
+        "PHP",  # Philippine Peso
+        "CZK",  # Czech Koruna
+        "ILS",  # Israeli Shekel
+        "AED",  # UAE Dirham
+        "SAR",  # Saudi Riyal
+        "ARS",  # Argentine Peso
+        "CLP",  # Chilean Peso
+        "COP",  # Colombian Peso
+        "VND",  # Vietnamese Dong
+        "TWD",  # Taiwan Dollar
+        "HUF",  # Hungarian Forint
+        "RON",  # Romanian Leu
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -75,7 +77,7 @@ class Currency:
             raise InvalidCurrencyError(self.code)
 
         # Use object.__setattr__ since dataclass is frozen
-        object.__setattr__(self, 'code', normalized)
+        object.__setattr__(self, "code", normalized)
 
     @property
     def symbol(self) -> str:

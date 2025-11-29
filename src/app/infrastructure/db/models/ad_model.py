@@ -72,12 +72,8 @@ class AdModel(Base):
     video_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     cta_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="unknown")
-    platforms: Mapped[list[str]] = mapped_column(
-        JSONB, nullable=False, default=list
-    )
-    countries: Mapped[list[str]] = mapped_column(
-        JSONB, nullable=False, default=list
-    )
+    platforms: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    countries: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
     started_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

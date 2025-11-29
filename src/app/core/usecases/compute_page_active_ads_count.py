@@ -8,7 +8,6 @@ from enum import Enum
 
 from ..domain import (
     Country,
-    Page,
     PageStatus,
     EntityNotFoundError,
 )
@@ -22,12 +21,12 @@ from ..ports import (
 class PageAdsTier(Enum):
     """Classification of pages by active ads count."""
 
-    XS = "xs"      # 0 ads
-    S = "s"        # 1-5 ads
-    M = "m"        # 6-20 ads
-    L = "l"        # 21-50 ads
-    XL = "xl"      # 51-100 ads
-    XXL = "xxl"    # 100+ ads
+    XS = "xs"  # 0 ads
+    S = "s"  # 1-5 ads
+    M = "m"  # 6-20 ads
+    L = "l"  # 21-50 ads
+    XL = "xl"  # 51-100 ads
+    XXL = "xxl"  # 100+ ads
 
     @classmethod
     def from_count(cls, count: int) -> "PageAdsTier":

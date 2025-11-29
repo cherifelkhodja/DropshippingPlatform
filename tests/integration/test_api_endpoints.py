@@ -45,6 +45,7 @@ def mock_http_session():
 def client(mock_database, mock_http_session):
     """Create test client with mocked dependencies."""
     from src.app.main import create_app
+
     app = create_app()
     # Mock the http_session in app.state
     app.state.http_session = mock_http_session
@@ -94,6 +95,7 @@ class TestPagesEndpoint:
             return_value=mock_repo,
         ):
             from src.app.main import create_app
+
             app = create_app()
             client = TestClient(app)
 
@@ -116,6 +118,7 @@ class TestPagesEndpoint:
             return_value=mock_repo,
         ):
             from src.app.main import create_app
+
             app = create_app()
             client = TestClient(app)
 
@@ -138,6 +141,7 @@ class TestPagesEndpoint:
             return_value=mock_repo,
         ):
             from src.app.main import create_app
+
             app = create_app()
             client = TestClient(app)
 
@@ -163,6 +167,7 @@ class TestPagesEndpoint:
             return_value=mock_repo,
         ):
             from src.app.main import create_app
+
             app = create_app()
             client = TestClient(app)
 
@@ -182,6 +187,7 @@ class TestPagesEndpoint:
             return_value=mock_repo,
         ):
             from src.app.main import create_app
+
             app = create_app()
             client = TestClient(app)
 
@@ -214,6 +220,7 @@ class TestScansEndpoint:
     def test_get_scan_invalid_id(self, mock_database) -> None:
         """Get scan returns 400 for invalid scan ID."""
         from src.app.main import create_app
+
         app = create_app()
         client = TestClient(app)
 
@@ -233,6 +240,7 @@ class TestScansEndpoint:
             return_value=mock_repo,
         ):
             from src.app.main import create_app
+
             app = create_app()
             client = TestClient(app)
 
@@ -253,6 +261,7 @@ class TestScansEndpoint:
             return_value=mock_repo,
         ):
             from src.app.main import create_app
+
             app = create_app()
             client = TestClient(app)
 
@@ -272,6 +281,7 @@ class TestKeywordsEndpoint:
     def test_search_invalid_country(self, mock_database, mock_http_session) -> None:
         """Search returns 422 for invalid country code."""
         from src.app.main import create_app
+
         app = create_app()
         app.state.http_session = mock_http_session
         client = TestClient(app)
@@ -286,6 +296,7 @@ class TestKeywordsEndpoint:
     def test_search_empty_keyword(self, mock_database, mock_http_session) -> None:
         """Search returns 422 for empty keyword."""
         from src.app.main import create_app
+
         app = create_app()
         app.state.http_session = mock_http_session
         client = TestClient(app)
@@ -297,11 +308,14 @@ class TestKeywordsEndpoint:
 
         assert response.status_code == 422  # Pydantic validation error
 
-    def test_search_valid_request_format(self, mock_database, mock_http_session) -> None:
+    def test_search_valid_request_format(
+        self, mock_database, mock_http_session
+    ) -> None:
         """Search endpoint accepts valid request format."""
         # This test verifies the endpoint exists, validates input, and returns
         # a proper response (not 422 Pydantic validation error)
         from src.app.main import create_app
+
         app = create_app()
         app.state.http_session = mock_http_session
         client = TestClient(app, raise_server_exceptions=False)
@@ -325,7 +339,9 @@ class TestExceptionHandlers:
     They test the exception handlers directly by raising exceptions from repository mocks.
     """
 
-    def test_scraping_blocked_returns_403(self, mock_database, mock_http_session) -> None:
+    def test_scraping_blocked_returns_403(
+        self, mock_database, mock_http_session
+    ) -> None:
         """ScrapingBlockedError returns 403 Forbidden."""
         from src.app.main import create_app
 
@@ -348,7 +364,9 @@ class TestExceptionHandlers:
             data = response.json()
             assert data["error"] == "ScrapingBlocked"
 
-    def test_scraping_timeout_returns_504(self, mock_database, mock_http_session) -> None:
+    def test_scraping_timeout_returns_504(
+        self, mock_database, mock_http_session
+    ) -> None:
         """ScrapingTimeoutError returns 504 Gateway Timeout."""
         from src.app.main import create_app
 
@@ -371,7 +389,9 @@ class TestExceptionHandlers:
             data = response.json()
             assert data["error"] == "ScrapingTimeout"
 
-    def test_sitemap_not_found_returns_404(self, mock_database, mock_http_session) -> None:
+    def test_sitemap_not_found_returns_404(
+        self, mock_database, mock_http_session
+    ) -> None:
         """SitemapNotFoundError returns 404 Not Found."""
         from src.app.main import create_app
 
@@ -394,7 +414,9 @@ class TestExceptionHandlers:
             data = response.json()
             assert data["error"] == "SitemapNotFound"
 
-    def test_sitemap_parsing_error_returns_422(self, mock_database, mock_http_session) -> None:
+    def test_sitemap_parsing_error_returns_422(
+        self, mock_database, mock_http_session
+    ) -> None:
         """SitemapParsingError returns 422 Unprocessable Entity."""
         from src.app.main import create_app
 
@@ -418,7 +440,9 @@ class TestExceptionHandlers:
             data = response.json()
             assert data["error"] == "SitemapParsingError"
 
-    def test_invalid_scan_id_returns_400(self, mock_database, mock_http_session) -> None:
+    def test_invalid_scan_id_returns_400(
+        self, mock_database, mock_http_session
+    ) -> None:
         """InvalidScanIdError returns 400 Bad Request."""
         from src.app.main import create_app
 
@@ -480,7 +504,9 @@ class TestExceptionHandlers:
 
         assert response.status_code == 502
 
-    def test_domain_validation_error_returns_400(self, mock_database, mock_http_session) -> None:
+    def test_domain_validation_error_returns_400(
+        self, mock_database, mock_http_session
+    ) -> None:
         """InvalidLanguageError returns 400 Bad Request (domain validation error)."""
         from src.app.main import create_app
 

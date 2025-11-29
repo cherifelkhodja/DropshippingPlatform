@@ -26,7 +26,9 @@ SITEMAP_NAMESPACES = {
 
 # Patterns to identify product sitemaps (prioritized order)
 PRODUCT_SITEMAP_PATTERNS = [
-    re.compile(r"sitemap_products_[a-z]{2}_\d+\.xml", re.IGNORECASE),  # sitemap_products_fr_1.xml
+    re.compile(
+        r"sitemap_products_[a-z]{2}_\d+\.xml", re.IGNORECASE
+    ),  # sitemap_products_fr_1.xml
     re.compile(r"sitemap_products_\d+\.xml", re.IGNORECASE),  # sitemap_products_1.xml
     re.compile(r"sitemap_products\.xml", re.IGNORECASE),  # sitemap_products.xml
     re.compile(r"products.*sitemap.*\.xml", re.IGNORECASE),  # products-sitemap.xml

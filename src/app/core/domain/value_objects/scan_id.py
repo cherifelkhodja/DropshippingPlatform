@@ -22,8 +22,8 @@ class ScanId:
 
     # UUID v4 pattern
     _UUID_PATTERN: re.Pattern[str] = re.compile(
-        r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
-        re.IGNORECASE
+        r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+        re.IGNORECASE,
     )
 
     def __post_init__(self) -> None:
@@ -37,7 +37,7 @@ class ScanId:
             raise InvalidScanIdError(self.value)
 
         # Store normalized (lowercase) version
-        object.__setattr__(self, 'value', normalized)
+        object.__setattr__(self, "value", normalized)
 
     @classmethod
     def generate(cls) -> "ScanId":

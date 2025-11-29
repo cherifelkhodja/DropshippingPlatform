@@ -194,6 +194,7 @@ class TestSearchAdsByKeywordUseCase:
         """Test that new pages are counted correctly."""
         # Pre-add an existing page
         from src.app.core.domain import Page, Url
+
         existing_page = Page.create(
             id="page-1",
             url=Url("https://existing.com"),

@@ -133,8 +133,7 @@ class TestComputePageActiveAdsCountUseCase:
 
         for count, expected_tier in test_cases:
             mock_meta_ads_port.get_ads_by_page.return_value = [
-                {"id": f"ad-{i}", "is_active": True}
-                for i in range(count)
+                {"id": f"ad-{i}", "is_active": True} for i in range(count)
             ]
 
             result = await use_case.execute(
@@ -181,6 +180,7 @@ class TestComputePageActiveAdsCountUseCase:
         page = Page.create(id="page-1", url=Url("https://example.com"))
         # Manually set state to VERIFIED_SHOPIFY
         from src.app.core.domain import PageState
+
         page = Page(
             id=page.id,
             url=page.url,

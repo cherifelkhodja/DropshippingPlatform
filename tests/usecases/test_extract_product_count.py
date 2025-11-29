@@ -183,6 +183,7 @@ class TestExtractProductCountUseCase:
         # Create a verified Shopify page
         page = Page.create(id="page-1", url=Url("https://example.com"))
         from src.app.core.domain import PageState
+
         page = Page(
             id=page.id,
             url=page.url,
@@ -219,6 +220,7 @@ class TestExtractProductCountUseCase:
         """Test that zero products doesn't trigger transition."""
         page = Page.create(id="page-1", url=Url("https://example.com"))
         from src.app.core.domain import PageState
+
         page = Page(
             id=page.id,
             url=page.url,

@@ -1,8 +1,8 @@
 """Page endpoints."""
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Query
 
-from src.app.api.schemas.pages import PageResponse, PageListResponse, PageFilters
+from src.app.api.schemas.pages import PageResponse, PageListResponse
 from src.app.api.schemas.common import ErrorResponse
 from src.app.api.dependencies import PageRepo
 from src.app.core.domain.errors import EntityNotFoundError

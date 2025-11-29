@@ -33,8 +33,7 @@ class InvalidCountryError(DomainError):
 
     def __init__(self, country_code: str) -> None:
         super().__init__(
-            message="Invalid ISO 3166-1 alpha-2 country code",
-            value=country_code
+            message="Invalid ISO 3166-1 alpha-2 country code", value=country_code
         )
 
 
@@ -42,26 +41,22 @@ class InvalidLanguageError(DomainError):
     """Raised when a language code is invalid."""
 
     def __init__(self, language_code: str) -> None:
-        super().__init__(
-            message="Invalid ISO 639-1 language code",
-            value=language_code
-        )
+        super().__init__(message="Invalid ISO 639-1 language code", value=language_code)
 
 
 class InvalidCurrencyError(DomainError):
     """Raised when a currency code is invalid."""
 
     def __init__(self, currency_code: str) -> None:
-        super().__init__(
-            message="Invalid ISO 4217 currency code",
-            value=currency_code
-        )
+        super().__init__(message="Invalid ISO 4217 currency code", value=currency_code)
 
 
 class InvalidProductCountError(DomainError):
     """Raised when a product count is invalid (negative or unreasonable)."""
 
-    def __init__(self, count: int, reason: str = "Product count must be non-negative") -> None:
+    def __init__(
+        self, count: int, reason: str = "Product count must be non-negative"
+    ) -> None:
         super().__init__(message=reason, value=count)
 
 
@@ -69,10 +64,7 @@ class InvalidPageStateError(DomainError):
     """Raised when a page state transition is invalid."""
 
     def __init__(self, state: str) -> None:
-        super().__init__(
-            message="Invalid page state",
-            value=state
-        )
+        super().__init__(message="Invalid page state", value=state)
 
 
 class InvalidCategoryError(DomainError):
@@ -87,8 +79,7 @@ class InvalidScanIdError(DomainError):
 
     def __init__(self, scan_id: str) -> None:
         super().__init__(
-            message="Invalid scan ID format (expected UUID)",
-            value=scan_id
+            message="Invalid scan ID format (expected UUID)", value=scan_id
         )
 
 
@@ -96,30 +87,21 @@ class InvalidPaymentMethodError(DomainError):
     """Raised when a payment method is invalid."""
 
     def __init__(self, method: str) -> None:
-        super().__init__(
-            message="Invalid payment method",
-            value=method
-        )
+        super().__init__(message="Invalid payment method", value=method)
 
 
 class EntityNotFoundError(DomainError):
     """Raised when an entity is not found."""
 
     def __init__(self, entity_type: str, entity_id: str) -> None:
-        super().__init__(
-            message=f"{entity_type} not found",
-            value=entity_id
-        )
+        super().__init__(message=f"{entity_type} not found", value=entity_id)
 
 
 class DuplicateEntityError(DomainError):
     """Raised when attempting to create a duplicate entity."""
 
     def __init__(self, entity_type: str, entity_id: str) -> None:
-        super().__init__(
-            message=f"{entity_type} already exists",
-            value=entity_id
-        )
+        super().__init__(message=f"{entity_type} already exists", value=entity_id)
 
 
 # =============================================================================
@@ -141,8 +123,7 @@ class ScrapingTimeoutError(ScrapingError):
 
     def __init__(self, url: str, timeout_seconds: int) -> None:
         super().__init__(
-            url=url,
-            reason=f"Request timed out after {timeout_seconds} seconds"
+            url=url, reason=f"Request timed out after {timeout_seconds} seconds"
         )
 
 
@@ -160,23 +141,24 @@ class SitemapNotFoundError(DomainError):
     """Raised when no sitemap is found for a website."""
 
     def __init__(self, website: str) -> None:
-        super().__init__(
-            message="No sitemap found for website",
-            value=website
-        )
+        super().__init__(message="No sitemap found for website", value=website)
 
 
 class SitemapParsingError(DomainError):
     """Raised when a sitemap cannot be parsed."""
 
-    def __init__(self, sitemap_url: str, reason: str = "Failed to parse sitemap") -> None:
+    def __init__(
+        self, sitemap_url: str, reason: str = "Failed to parse sitemap"
+    ) -> None:
         super().__init__(message=reason, value=sitemap_url)
 
 
 class RepositoryError(DomainError):
     """Base error for repository operations."""
 
-    def __init__(self, operation: str, reason: str = "Database operation failed") -> None:
+    def __init__(
+        self, operation: str, reason: str = "Database operation failed"
+    ) -> None:
         super().__init__(message=reason, value=operation)
 
 

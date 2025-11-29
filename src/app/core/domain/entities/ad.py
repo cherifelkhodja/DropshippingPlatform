@@ -91,9 +91,9 @@ class Ad:
     def __post_init__(self) -> None:
         """Initialize derived fields after creation."""
         if self.first_seen_at is None:
-            object.__setattr__(self, 'first_seen_at', self.created_at)
+            object.__setattr__(self, "first_seen_at", self.created_at)
         if self.last_seen_at is None:
-            object.__setattr__(self, 'last_seen_at', self.created_at)
+            object.__setattr__(self, "last_seen_at", self.created_at)
 
     @classmethod
     def create(

@@ -9,38 +9,40 @@ from ..errors import InvalidLanguageError
 
 
 # ISO 639-1 language codes (most common ones)
-VALID_LANGUAGE_CODES: frozenset[str] = frozenset({
-    "en",  # English
-    "fr",  # French
-    "de",  # German
-    "es",  # Spanish
-    "it",  # Italian
-    "pt",  # Portuguese
-    "nl",  # Dutch
-    "pl",  # Polish
-    "ru",  # Russian
-    "ja",  # Japanese
-    "zh",  # Chinese
-    "ko",  # Korean
-    "ar",  # Arabic
-    "hi",  # Hindi
-    "tr",  # Turkish
-    "vi",  # Vietnamese
-    "th",  # Thai
-    "id",  # Indonesian
-    "ms",  # Malay
-    "sv",  # Swedish
-    "no",  # Norwegian
-    "da",  # Danish
-    "fi",  # Finnish
-    "el",  # Greek
-    "cs",  # Czech
-    "ro",  # Romanian
-    "hu",  # Hungarian
-    "uk",  # Ukrainian
-    "he",  # Hebrew
-    "bn",  # Bengali
-})
+VALID_LANGUAGE_CODES: frozenset[str] = frozenset(
+    {
+        "en",  # English
+        "fr",  # French
+        "de",  # German
+        "es",  # Spanish
+        "it",  # Italian
+        "pt",  # Portuguese
+        "nl",  # Dutch
+        "pl",  # Polish
+        "ru",  # Russian
+        "ja",  # Japanese
+        "zh",  # Chinese
+        "ko",  # Korean
+        "ar",  # Arabic
+        "hi",  # Hindi
+        "tr",  # Turkish
+        "vi",  # Vietnamese
+        "th",  # Thai
+        "id",  # Indonesian
+        "ms",  # Malay
+        "sv",  # Swedish
+        "no",  # Norwegian
+        "da",  # Danish
+        "fi",  # Finnish
+        "el",  # Greek
+        "cs",  # Czech
+        "ro",  # Romanian
+        "hu",  # Hungarian
+        "uk",  # Ukrainian
+        "he",  # Hebrew
+        "bn",  # Bengali
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -68,7 +70,7 @@ class Language:
             raise InvalidLanguageError(self.code)
 
         # Use object.__setattr__ since dataclass is frozen
-        object.__setattr__(self, 'code', normalized)
+        object.__setattr__(self, "code", normalized)
 
     def __str__(self) -> str:
         return self.code

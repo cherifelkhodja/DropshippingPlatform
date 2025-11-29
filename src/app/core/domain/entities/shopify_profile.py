@@ -319,11 +319,13 @@ class ShopifyProfile:
 
     def has_tracking_pixels(self) -> bool:
         """Check if any tracking pixels are detected."""
-        return any([
-            self.facebook_pixel_id,
-            self.google_analytics_id,
-            self.tiktok_pixel_id,
-        ])
+        return any(
+            [
+                self.facebook_pixel_id,
+                self.google_analytics_id,
+                self.tiktok_pixel_id,
+            ]
+        )
 
     def is_well_equipped(self) -> bool:
         """Check if the store has good e-commerce features."""
@@ -348,10 +350,7 @@ class ShopifyProfile:
         Returns:
             True if the app is detected.
         """
-        return any(
-            app.name.lower() == app_name.lower()
-            for app in self.apps
-        )
+        return any(app.name.lower() == app_name.lower() for app in self.apps)
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, ShopifyProfile):

@@ -11,7 +11,9 @@ class ScanResultResponse(BaseModel):
     ads_found: int = Field(default=0, description="Number of ads found")
     new_ads: int = Field(default=0, description="Number of new ads")
     products_found: int = Field(default=0, description="Number of products found")
-    is_shopify: bool | None = Field(default=None, description="Shopify detection result")
+    is_shopify: bool | None = Field(
+        default=None, description="Shopify detection result"
+    )
     errors: list[str] = Field(default_factory=list, description="Error messages")
     warnings: list[str] = Field(default_factory=list, description="Warning messages")
 

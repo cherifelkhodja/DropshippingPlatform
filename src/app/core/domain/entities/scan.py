@@ -14,23 +14,23 @@ from ..value_objects import ScanId
 class ScanType(Enum):
     """Enumeration of scan types."""
 
-    FULL = "full"                    # Complete analysis
-    ADS_ONLY = "ads_only"            # Only ads detection
-    SHOPIFY_DETECT = "shopify"       # Shopify detection only
-    SITEMAP = "sitemap"              # Sitemap analysis
-    PROFILE_UPDATE = "profile"       # Profile information update
-    QUICK = "quick"                  # Quick/lightweight scan
+    FULL = "full"  # Complete analysis
+    ADS_ONLY = "ads_only"  # Only ads detection
+    SHOPIFY_DETECT = "shopify"  # Shopify detection only
+    SITEMAP = "sitemap"  # Sitemap analysis
+    PROFILE_UPDATE = "profile"  # Profile information update
+    QUICK = "quick"  # Quick/lightweight scan
 
 
 class ScanStatus(Enum):
     """Enumeration of scan statuses."""
 
-    PENDING = "pending"              # Waiting to start
-    RUNNING = "running"              # Currently executing
-    COMPLETED = "completed"          # Successfully completed
-    FAILED = "failed"                # Failed with error
-    CANCELLED = "cancelled"          # Cancelled by user/system
-    TIMEOUT = "timeout"              # Timed out
+    PENDING = "pending"  # Waiting to start
+    RUNNING = "running"  # Currently executing
+    COMPLETED = "completed"  # Successfully completed
+    FAILED = "failed"  # Failed with error
+    CANCELLED = "cancelled"  # Cancelled by user/system
+    TIMEOUT = "timeout"  # Timed out
 
 
 @dataclass
@@ -292,12 +292,16 @@ class Scan:
 
     def is_terminal(self) -> bool:
         """Check if the scan is in a terminal state."""
-        return self.status in {
-            ScanStatus.COMPLETED,
-            ScanStatus.CANCELLED,
-            ScanStatus.FAILED,
-            ScanStatus.TIMEOUT,
-        } and not self.can_retry()
+        return (
+            self.status
+            in {
+                ScanStatus.COMPLETED,
+                ScanStatus.CANCELLED,
+                ScanStatus.FAILED,
+                ScanStatus.TIMEOUT,
+            }
+            and not self.can_retry()
+        )
 
     def get_duration_seconds(self) -> Optional[float]:
         """Get the scan duration in seconds.

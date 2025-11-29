@@ -253,7 +253,9 @@ class AnalysePageDeepUseCase:
                 image_url=image_url,
                 video_url=video_url,
                 cta_type=raw.get("call_to_action_type"),
-                status=AdStatus.ACTIVE if raw.get("is_active", True) else AdStatus.INACTIVE,
+                status=AdStatus.ACTIVE
+                if raw.get("is_active", True)
+                else AdStatus.INACTIVE,
                 platforms=platforms,
                 started_at=started_at,
                 impressions_lower=impressions.get("lower_bound"),

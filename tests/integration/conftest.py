@@ -16,7 +16,7 @@ from src.app.infrastructure.db.models import Base
 # Test database URL (use environment variable or default)
 TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL",
-    "postgresql+asyncpg://dropshipping:dropshipping@localhost:5432/dropshipping_test"
+    "postgresql+asyncpg://dropshipping:dropshipping@localhost:5432/dropshipping_test",
 )
 
 # Mock server URL

@@ -9,68 +9,70 @@ from ..errors import InvalidCategoryError
 
 
 # Predefined categories for dropshipping products
-VALID_CATEGORIES: frozenset[str] = frozenset({
-    # Fashion & Apparel
-    "fashion",
-    "clothing",
-    "shoes",
-    "accessories",
-    "jewelry",
-    "watches",
-    "bags",
-    # Beauty & Health
-    "beauty",
-    "cosmetics",
-    "skincare",
-    "health",
-    "wellness",
-    "fitness",
-    # Electronics
-    "electronics",
-    "phones",
-    "computers",
-    "gadgets",
-    "audio",
-    "gaming",
-    # Home & Garden
-    "home",
-    "furniture",
-    "decor",
-    "garden",
-    "kitchen",
-    "lighting",
-    # Sports & Outdoors
-    "sports",
-    "outdoors",
-    "camping",
-    "cycling",
-    # Kids & Baby
-    "kids",
-    "baby",
-    "toys",
-    # Pets
-    "pets",
-    "pet_supplies",
-    # Automotive
-    "automotive",
-    "car_accessories",
-    # Food & Beverages
-    "food",
-    "beverages",
-    # Books & Media
-    "books",
-    "media",
-    # Art & Crafts
-    "art",
-    "crafts",
-    # Office & Business
-    "office",
-    "business",
-    # Other
-    "general",
-    "other",
-    "uncategorized",
-})
+VALID_CATEGORIES: frozenset[str] = frozenset(
+    {
+        # Fashion & Apparel
+        "fashion",
+        "clothing",
+        "shoes",
+        "accessories",
+        "jewelry",
+        "watches",
+        "bags",
+        # Beauty & Health
+        "beauty",
+        "cosmetics",
+        "skincare",
+        "health",
+        "wellness",
+        "fitness",
+        # Electronics
+        "electronics",
+        "phones",
+        "computers",
+        "gadgets",
+        "audio",
+        "gaming",
+        # Home & Garden
+        "home",
+        "furniture",
+        "decor",
+        "garden",
+        "kitchen",
+        "lighting",
+        # Sports & Outdoors
+        "sports",
+        "outdoors",
+        "camping",
+        "cycling",
+        # Kids & Baby
+        "kids",
+        "baby",
+        "toys",
+        # Pets
+        "pets",
+        "pet_supplies",
+        # Automotive
+        "automotive",
+        "car_accessories",
+        # Food & Beverages
+        "food",
+        "beverages",
+        # Books & Media
+        "books",
+        "media",
+        # Art & Crafts
+        "art",
+        "crafts",
+        # Office & Business
+        "office",
+        "business",
+        # Other
+        "general",
+        "other",
+        "uncategorized",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -92,18 +94,16 @@ class Category:
 
         if len(normalized) < 2:
             raise InvalidCategoryError(
-                self.value,
-                "Category must be at least 2 characters"
+                self.value, "Category must be at least 2 characters"
             )
 
         if len(normalized) > 50:
             raise InvalidCategoryError(
-                self.value,
-                "Category must not exceed 50 characters"
+                self.value, "Category must not exceed 50 characters"
             )
 
         # Allow custom categories, but normalize them
-        object.__setattr__(self, 'value', normalized)
+        object.__setattr__(self, "value", normalized)
 
     @classmethod
     def uncategorized(cls) -> "Category":
@@ -117,16 +117,25 @@ class Category:
     def is_fashion_related(self) -> bool:
         """Check if this category is fashion-related."""
         fashion_categories = {
-            "fashion", "clothing", "shoes", "accessories",
-            "jewelry", "watches", "bags"
+            "fashion",
+            "clothing",
+            "shoes",
+            "accessories",
+            "jewelry",
+            "watches",
+            "bags",
         }
         return self.value in fashion_categories
 
     def is_electronics_related(self) -> bool:
         """Check if this category is electronics-related."""
         electronics_categories = {
-            "electronics", "phones", "computers", "gadgets",
-            "audio", "gaming"
+            "electronics",
+            "phones",
+            "computers",
+            "gadgets",
+            "audio",
+            "gaming",
         }
         return self.value in electronics_categories
 

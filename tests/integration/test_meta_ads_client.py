@@ -1,10 +1,9 @@
 """Integration tests for Meta Ads client."""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 from src.app.adapters.outbound.meta import MetaAdsClient, MetaAdsConfig
-from src.app.core.domain.errors import MetaAdsApiError, MetaAdsRateLimitError
 from src.app.core.domain.value_objects import Country, Language
 
 pytestmark = pytest.mark.integration
@@ -41,7 +40,9 @@ class TestMetaAdsClient:
             "paging": {},
         }
 
-        with patch.object(client, "_execute_request", new_callable=AsyncMock) as mock_req:
+        with patch.object(
+            client, "_execute_request", new_callable=AsyncMock
+        ) as mock_req:
             mock_req.return_value = mock_response
 
             ads = await client.search_ads_by_keyword(
@@ -66,7 +67,9 @@ class TestMetaAdsClient:
 
         mock_response = {"data": [{"id": "ad_1", "page_id": "page_1"}], "paging": {}}
 
-        with patch.object(client, "_execute_request", new_callable=AsyncMock) as mock_req:
+        with patch.object(
+            client, "_execute_request", new_callable=AsyncMock
+        ) as mock_req:
             mock_req.return_value = mock_response
 
             ads = await client.search_ads_by_keyword(
@@ -92,7 +95,9 @@ class TestMetaAdsClient:
             "paging": {},
         }
 
-        with patch.object(client, "_execute_request", new_callable=AsyncMock) as mock_req:
+        with patch.object(
+            client, "_execute_request", new_callable=AsyncMock
+        ) as mock_req:
             mock_req.return_value = mock_response
 
             ads = await client.get_ads_by_page(
@@ -124,7 +129,9 @@ class TestMetaAdsClient:
             "paging": {},
         }
 
-        with patch.object(client, "_execute_request", new_callable=AsyncMock) as mock_req:
+        with patch.object(
+            client, "_execute_request", new_callable=AsyncMock
+        ) as mock_req:
             mock_req.return_value = mock_response
 
             ads = await client.get_ads_details(
@@ -206,7 +213,9 @@ class TestMetaAdsClient:
 
         mock_response = {"data": [], "paging": {}}
 
-        with patch.object(client, "_execute_request", new_callable=AsyncMock) as mock_req:
+        with patch.object(
+            client, "_execute_request", new_callable=AsyncMock
+        ) as mock_req:
             mock_req.return_value = mock_response
 
             await client.search_ads_by_keyword(
@@ -215,4 +224,6 @@ class TestMetaAdsClient:
             )
 
             assert len(fake_logger.messages) >= 2
-            assert any("keyword search" in msg.lower() for _, msg, _ in fake_logger.messages)
+            assert any(
+                "keyword search" in msg.lower() for _, msg, _ in fake_logger.messages
+            )

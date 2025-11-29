@@ -69,9 +69,9 @@ class Page:
     def __post_init__(self) -> None:
         """Initialize derived fields after creation."""
         if not self.domain and self.url:
-            object.__setattr__(self, 'domain', self.url.domain)
+            object.__setattr__(self, "domain", self.url.domain)
         if self.first_seen_at is None:
-            object.__setattr__(self, 'first_seen_at', self.created_at)
+            object.__setattr__(self, "first_seen_at", self.created_at)
 
     @classmethod
     def create(

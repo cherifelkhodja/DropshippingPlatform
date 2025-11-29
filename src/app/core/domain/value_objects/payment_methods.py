@@ -67,7 +67,7 @@ class PaymentMethods:
         """Validate payment methods after initialization."""
         if not isinstance(self.methods, frozenset):
             # Convert to frozenset if needed
-            object.__setattr__(self, 'methods', frozenset(self.methods))
+            object.__setattr__(self, "methods", frozenset(self.methods))
 
     @classmethod
     def from_strings(cls, values: list[str]) -> "PaymentMethods":

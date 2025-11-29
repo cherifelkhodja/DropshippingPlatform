@@ -57,6 +57,7 @@ class TestAnalyseWebsiteUseCase:
         )
         # Transition to ANALYZED state
         from src.app.core.domain import PageState
+
         page = Page(
             id=page.id,
             url=page.url,
@@ -120,6 +121,7 @@ class TestAnalyseWebsiteUseCase:
         # Setup page in ANALYZED state
         page = Page.create(id="page-1", url=Url("https://example.com"))
         from src.app.core.domain import PageState
+
         page = Page(
             id=page.id,
             url=page.url,
@@ -178,6 +180,7 @@ class TestAnalyseWebsiteUseCase:
         """Test currency extraction."""
         page = Page.create(id="page-1", url=Url("https://example.com"))
         from src.app.core.domain import PageState
+
         page = Page(
             id=page.id,
             url=page.url,
@@ -215,6 +218,7 @@ class TestAnalyseWebsiteUseCase:
         """Test payment methods detection."""
         page = Page.create(id="page-1", url=Url("https://example.com"))
         from src.app.core.domain import PageState
+
         page = Page(
             id=page.id,
             url=page.url,
@@ -257,6 +261,7 @@ class TestAnalyseWebsiteUseCase:
         """Test category detection from content."""
         page = Page.create(id="page-1", url=Url("https://example.com"))
         from src.app.core.domain import PageState
+
         page = Page(
             id=page.id,
             url=page.url,
@@ -295,6 +300,7 @@ class TestAnalyseWebsiteUseCase:
         """Test Shopify detection via HTTP headers."""
         page = Page.create(id="page-1", url=Url("https://example.com"))
         from src.app.core.domain import PageState
+
         page = Page(
             id=page.id,
             url=page.url,

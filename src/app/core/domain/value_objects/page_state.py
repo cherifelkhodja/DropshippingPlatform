@@ -13,28 +13,28 @@ class PageStatus(Enum):
     """Enumeration of possible page states."""
 
     # Initial discovery states
-    DISCOVERED = "discovered"          # Page found but not yet analyzed
-    PENDING_ANALYSIS = "pending"       # Queued for analysis
+    DISCOVERED = "discovered"  # Page found but not yet analyzed
+    PENDING_ANALYSIS = "pending"  # Queued for analysis
 
     # Analysis states
-    ANALYZING = "analyzing"            # Currently being analyzed
-    ANALYZED = "analyzed"              # Analysis complete
+    ANALYZING = "analyzing"  # Currently being analyzed
+    ANALYZED = "analyzed"  # Analysis complete
 
     # Verification states
-    VERIFIED_SHOPIFY = "verified"      # Confirmed as Shopify store
-    NOT_SHOPIFY = "not_shopify"        # Confirmed as not Shopify
+    VERIFIED_SHOPIFY = "verified"  # Confirmed as Shopify store
+    NOT_SHOPIFY = "not_shopify"  # Confirmed as not Shopify
 
     # Active monitoring states
-    ACTIVE = "active"                  # Actively monitored
-    INACTIVE = "inactive"              # No longer actively monitored
+    ACTIVE = "active"  # Actively monitored
+    INACTIVE = "inactive"  # No longer actively monitored
 
     # Error states
-    ERROR = "error"                    # Error during processing
-    UNREACHABLE = "unreachable"        # Site cannot be reached
+    ERROR = "error"  # Error during processing
+    UNREACHABLE = "unreachable"  # Site cannot be reached
 
     # Removal states
-    ARCHIVED = "archived"              # Archived for historical purposes
-    DELETED = "deleted"                # Marked for deletion
+    ARCHIVED = "archived"  # Archived for historical purposes
+    DELETED = "deleted"  # Marked for deletion
 
     @classmethod
     def from_string(cls, value: str) -> "PageStatus":
@@ -58,61 +58,83 @@ class PageStatus(Enum):
 
 # Valid state transitions
 VALID_TRANSITIONS: dict[PageStatus, frozenset[PageStatus]] = {
-    PageStatus.DISCOVERED: frozenset({
-        PageStatus.PENDING_ANALYSIS,
-        PageStatus.ERROR,
-        PageStatus.DELETED,
-    }),
-    PageStatus.PENDING_ANALYSIS: frozenset({
-        PageStatus.ANALYZING,
-        PageStatus.ERROR,
-        PageStatus.DELETED,
-    }),
-    PageStatus.ANALYZING: frozenset({
-        PageStatus.ANALYZED,
-        PageStatus.ERROR,
-        PageStatus.UNREACHABLE,
-    }),
-    PageStatus.ANALYZED: frozenset({
-        PageStatus.VERIFIED_SHOPIFY,
-        PageStatus.NOT_SHOPIFY,
-        PageStatus.ERROR,
-    }),
-    PageStatus.VERIFIED_SHOPIFY: frozenset({
-        PageStatus.ACTIVE,
-        PageStatus.INACTIVE,
-        PageStatus.ERROR,
-        PageStatus.UNREACHABLE,
-    }),
-    PageStatus.NOT_SHOPIFY: frozenset({
-        PageStatus.ARCHIVED,
-        PageStatus.DELETED,
-    }),
-    PageStatus.ACTIVE: frozenset({
-        PageStatus.INACTIVE,
-        PageStatus.ERROR,
-        PageStatus.UNREACHABLE,
-        PageStatus.ARCHIVED,
-    }),
-    PageStatus.INACTIVE: frozenset({
-        PageStatus.ACTIVE,
-        PageStatus.ARCHIVED,
-        PageStatus.DELETED,
-    }),
-    PageStatus.ERROR: frozenset({
-        PageStatus.PENDING_ANALYSIS,
-        PageStatus.ARCHIVED,
-        PageStatus.DELETED,
-    }),
-    PageStatus.UNREACHABLE: frozenset({
-        PageStatus.PENDING_ANALYSIS,
-        PageStatus.ARCHIVED,
-        PageStatus.DELETED,
-    }),
-    PageStatus.ARCHIVED: frozenset({
-        PageStatus.DELETED,
-        PageStatus.ACTIVE,  # Can be reactivated
-    }),
+    PageStatus.DISCOVERED: frozenset(
+        {
+            PageStatus.PENDING_ANALYSIS,
+            PageStatus.ERROR,
+            PageStatus.DELETED,
+        }
+    ),
+    PageStatus.PENDING_ANALYSIS: frozenset(
+        {
+            PageStatus.ANALYZING,
+            PageStatus.ERROR,
+            PageStatus.DELETED,
+        }
+    ),
+    PageStatus.ANALYZING: frozenset(
+        {
+            PageStatus.ANALYZED,
+            PageStatus.ERROR,
+            PageStatus.UNREACHABLE,
+        }
+    ),
+    PageStatus.ANALYZED: frozenset(
+        {
+            PageStatus.VERIFIED_SHOPIFY,
+            PageStatus.NOT_SHOPIFY,
+            PageStatus.ERROR,
+        }
+    ),
+    PageStatus.VERIFIED_SHOPIFY: frozenset(
+        {
+            PageStatus.ACTIVE,
+            PageStatus.INACTIVE,
+            PageStatus.ERROR,
+            PageStatus.UNREACHABLE,
+        }
+    ),
+    PageStatus.NOT_SHOPIFY: frozenset(
+        {
+            PageStatus.ARCHIVED,
+            PageStatus.DELETED,
+        }
+    ),
+    PageStatus.ACTIVE: frozenset(
+        {
+            PageStatus.INACTIVE,
+            PageStatus.ERROR,
+            PageStatus.UNREACHABLE,
+            PageStatus.ARCHIVED,
+        }
+    ),
+    PageStatus.INACTIVE: frozenset(
+        {
+            PageStatus.ACTIVE,
+            PageStatus.ARCHIVED,
+            PageStatus.DELETED,
+        }
+    ),
+    PageStatus.ERROR: frozenset(
+        {
+            PageStatus.PENDING_ANALYSIS,
+            PageStatus.ARCHIVED,
+            PageStatus.DELETED,
+        }
+    ),
+    PageStatus.UNREACHABLE: frozenset(
+        {
+            PageStatus.PENDING_ANALYSIS,
+            PageStatus.ARCHIVED,
+            PageStatus.DELETED,
+        }
+    ),
+    PageStatus.ARCHIVED: frozenset(
+        {
+            PageStatus.DELETED,
+            PageStatus.ACTIVE,  # Can be reactivated
+        }
+    ),
     PageStatus.DELETED: frozenset(),  # Terminal state
 }
 

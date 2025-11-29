@@ -5,8 +5,7 @@ for testing the domain and use cases.
 """
 
 import pytest
-from datetime import datetime
-from typing import Any, Iterable, Sequence
+from typing import Any, Sequence
 from unittest.mock import AsyncMock
 
 from src.app.core.domain import (
@@ -23,19 +22,11 @@ from src.app.core.domain import (
     ScanId,
     ProductCount,
     Category,
-    PageState,
-    PageStatus,
 )
 from src.app.core.ports import (
     MetaAdsPort,
     HtmlScraperPort,
     SitemapPort,
-    PageRepository,
-    AdsRepository,
-    ScanRepository,
-    KeywordRunRepository,
-    TaskDispatcherPort,
-    LoggingPort,
 )
 
 
@@ -225,23 +216,27 @@ class FakeTaskDispatcher:
         scan_id: ScanId,
         country: Country,
     ) -> None:
-        self.dispatched_tasks.append({
-            "type": "scan_page",
-            "page_id": page_id,
-            "scan_id": str(scan_id),
-            "country": str(country),
-        })
+        self.dispatched_tasks.append(
+            {
+                "type": "scan_page",
+                "page_id": page_id,
+                "scan_id": str(scan_id),
+                "country": str(country),
+            }
+        )
 
     async def dispatch_analyse_website(
         self,
         page_id: str,
         url: Url,
     ) -> None:
-        self.dispatched_tasks.append({
-            "type": "analyse_website",
-            "page_id": page_id,
-            "url": str(url),
-        })
+        self.dispatched_tasks.append(
+            {
+                "type": "analyse_website",
+                "page_id": page_id,
+                "url": str(url),
+            }
+        )
 
     async def dispatch_sitemap_count(
         self,
@@ -249,12 +244,14 @@ class FakeTaskDispatcher:
         website: Url,
         country: Country,
     ) -> None:
-        self.dispatched_tasks.append({
-            "type": "sitemap_count",
-            "page_id": page_id,
-            "website": str(website),
-            "country": str(country),
-        })
+        self.dispatched_tasks.append(
+            {
+                "type": "sitemap_count",
+                "page_id": page_id,
+                "website": str(website),
+                "country": str(country),
+            }
+        )
 
 
 # =============================================================================
