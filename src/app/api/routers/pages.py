@@ -18,6 +18,13 @@ from src.app.api.schemas.products import (
     ProductResponse,
     ProductListResponse,
     SyncProductsResponse,
+    PageProductInsightsResponse,
+    ProductInsightsEntry,
+    ProductInsightsSortBy,
+    product_to_response,
+    product_insights_to_entry,
+    product_insights_to_data,
+    page_product_insights_to_response,
 )
 from src.app.api.schemas.common import ErrorResponse
 from src.app.api.dependencies import (
@@ -27,6 +34,7 @@ from src.app.api.dependencies import (
     GetRankedShopsUC,
     ProductRepo,
     SyncProductsUC,
+    BuildProductInsightsUC,
 )
 from src.app.core.domain.entities.page import Page
 from src.app.core.domain.entities.product import Product
@@ -430,3 +438,115 @@ async def sync_page_products(
         source=result.source,
         error=result.error,
     )
+
+
+# =============================================================================
+# Product Insights Endpoints
+# =============================================================================
+
+
+@router.get(
+    "/{page_id}/products/insights",
+    response_model=PageProductInsightsResponse,
+    summary="Get product insights for a page",
+    description="Get product-ad matching insights for all products in a page.",
+    responses={
+        404: {"model": ErrorResponse, "description": "Page not found"},
+        500: {"model": ErrorResponse, "description": "Error computing insights"},
+    },
+)
+async def get_page_product_insights(
+    page_id: str,
+    build_insights_uc: BuildProductInsightsUC,
+    limit: int = Query(default=50, ge=1, le=200, description="Maximum items to return"),
+    offset: int = Query(default=0, ge=0, description="Offset for pagination"),
+    sort_by: ProductInsightsSortBy = Query(
+        default=ProductInsightsSortBy.ADS_COUNT,
+        description="Sort by: ads_count (default), match_score, or last_seen_at",
+    ),
+) -> PageProductInsightsResponse:
+    """Get product insights for a page.
+
+    Returns aggregated product-ad matching insights for all products
+    in the specified page. Results can be sorted by ads_count,
+    match_score, or last_seen_at.
+
+    The response includes:
+    - Summary with coverage and promotion ratios
+    - Paginated list of products with their matched ads
+    """
+    # Execute use case (handles page existence check)
+    result = await build_insights_uc.execute(page_id=page_id)
+
+    page_insights = result.insights
+    all_insights = page_insights.product_insights
+
+    # Sort insights based on sort_by parameter
+    def get_last_seen(insight):
+        """Extract last_seen_at from matched ads for sorting."""
+        if not insight.matched_ads:
+            return datetime.min
+        last_seen = None
+        for match in insight.matched_ads:
+            ad_last = match.ad.last_seen_at
+            if ad_last and (last_seen is None or ad_last > last_seen):
+                last_seen = ad_last
+        return last_seen or datetime.min
+
+    if sort_by == ProductInsightsSortBy.ADS_COUNT:
+        sorted_insights = sorted(
+            all_insights,
+            key=lambda i: len(i.matched_ads),
+            reverse=True,
+        )
+    elif sort_by == ProductInsightsSortBy.MATCH_SCORE:
+        sorted_insights = sorted(
+            all_insights,
+            key=lambda i: i.match_score,
+            reverse=True,
+        )
+    else:  # LAST_SEEN_AT
+        sorted_insights = sorted(
+            all_insights,
+            key=get_last_seen,
+            reverse=True,
+        )
+
+    # Apply pagination
+    paginated_insights = sorted_insights[offset : offset + limit]
+
+    return page_product_insights_to_response(
+        page_insights=page_insights,
+        sorted_insights=paginated_insights,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get(
+    "/{page_id}/products/{product_id}/insights",
+    response_model=ProductInsightsEntry,
+    summary="Get insights for a specific product",
+    description="Get product-ad matching insights for a specific product.",
+    responses={
+        404: {"model": ErrorResponse, "description": "Page or product not found"},
+        500: {"model": ErrorResponse, "description": "Error computing insights"},
+    },
+)
+async def get_product_insights(
+    page_id: str,
+    product_id: str,
+    build_insights_uc: BuildProductInsightsUC,
+) -> ProductInsightsEntry:
+    """Get insights for a specific product.
+
+    Returns the product details along with its matched ads
+    and computed insights (match score, promotion status, etc.).
+    """
+    # Execute use case for single product
+    product_insight = await build_insights_uc.execute_for_product(
+        page_id=page_id,
+        product_id=product_id,
+    )
+
+    return product_insights_to_entry(product_insight)

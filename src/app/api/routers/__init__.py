@@ -5,6 +5,7 @@ from .alerts import router as alerts_router
 from .health import router as health_router
 from .keywords import router as keywords_router
 from .pages import router as pages_router
+from .products import router as products_router
 from .scans import router as scans_router
 from .watchlists import router as watchlists_router
 
@@ -14,6 +15,7 @@ __all__ = [
     "health_router",
     "keywords_router",
     "pages_router",
+    "products_router",
     "scans_router",
     "watchlists_router",
 ]

@@ -71,6 +71,7 @@ from src.app.core.usecases.get_ranked_shops import GetRankedShopsUseCase
 from src.app.core.usecases.extract_product_count import ExtractProductCountUseCase
 from src.app.core.usecases.search_ads_by_keyword import SearchAdsByKeywordUseCase
 from src.app.core.usecases.sync_products_for_page import SyncProductsForPageUseCase
+from src.app.core.usecases.build_product_insights import BuildProductInsightsForPageUseCase
 from src.app.core.usecases.watchlists import (
     CreateWatchlistUseCase,
     GetWatchlistUseCase,
@@ -484,6 +485,23 @@ def get_sync_products_use_case(
     )
 
 
+def get_build_product_insights_use_case(
+    page_repo: PageRepo,
+    product_repo: ProductRepo,
+    ads_repo: AdsRepo,
+) -> BuildProductInsightsForPageUseCase:
+    """Get BuildProductInsightsForPage use case.
+
+    Uses injected repository dependencies for cleaner composition.
+    """
+    return BuildProductInsightsForPageUseCase(
+        page_repository=page_repo,
+        product_repository=product_repo,
+        ads_repository=ads_repo,
+        logger=get_logger("usecase.build_product_insights"),
+    )
+
+
 # Type aliases for use cases
 SearchAdsUseCase = Annotated[
     SearchAdsByKeywordUseCase,
@@ -516,6 +534,10 @@ GetRankedShopsUC = Annotated[
 SyncProductsUC = Annotated[
     SyncProductsForPageUseCase,
     Depends(get_sync_products_use_case),
+]
+BuildProductInsightsUC = Annotated[
+    BuildProductInsightsForPageUseCase,
+    Depends(get_build_product_insights_use_case),
 ]
 
 
