@@ -32,6 +32,7 @@ from .product_insights import (
     AdMatch,
     MatchStrength,
 )
+from .page_daily_metrics import PageDailyMetrics, PageMetricsHistoryResult
 
 __all__ = [
     # Page
@@ -80,4 +81,7 @@ __all__ = [
     "PageProductInsights",
     "AdMatch",
     "MatchStrength",
+    # Page Daily Metrics (time series)
+    "PageDailyMetrics",
+    "PageMetricsHistoryResult",
 ]

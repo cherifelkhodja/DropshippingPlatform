@@ -44,6 +44,9 @@ from src.app.adapters.outbound.repositories.alert_repository import (
 from src.app.adapters.outbound.repositories.product_repository import (
     PostgresProductRepository,
 )
+from src.app.adapters.outbound.repositories.page_metrics_repository import (
+    PostgresPageMetricsRepository,
+)
 from src.app.adapters.outbound.scraper.html_scraper import HtmlScraperClient
 from src.app.adapters.outbound.product_extractor.shopify_product_extractor import (
     ShopifyProductExtractor,
@@ -59,6 +62,7 @@ from src.app.core.ports.repository_port import (
     WatchlistRepository,
     AlertRepository,
     ProductRepository,
+    PageMetricsRepository,
 )
 from src.app.core.ports.task_dispatcher_port import TaskDispatcherPort
 from src.app.core.usecases.analyse_page_deep import AnalysePageDeepUseCase
@@ -72,6 +76,7 @@ from src.app.core.usecases.extract_product_count import ExtractProductCountUseCa
 from src.app.core.usecases.search_ads_by_keyword import SearchAdsByKeywordUseCase
 from src.app.core.usecases.sync_products_for_page import SyncProductsForPageUseCase
 from src.app.core.usecases.build_product_insights import BuildProductInsightsForPageUseCase
+from src.app.core.usecases.metrics import GetPageMetricsHistoryUseCase
 from src.app.core.usecases.watchlists import (
     CreateWatchlistUseCase,
     GetWatchlistUseCase,
@@ -249,6 +254,14 @@ def get_product_repository(session: DbSession) -> PostgresProductRepository:
 
 
 ProductRepo = Annotated[ProductRepository, Depends(get_product_repository)]
+
+
+def get_page_metrics_repository(session: DbSession) -> PostgresPageMetricsRepository:
+    """Get page metrics repository."""
+    return PostgresPageMetricsRepository(session)
+
+
+PageMetricsRepo = Annotated[PageMetricsRepository, Depends(get_page_metrics_repository)]
 
 
 # =============================================================================
@@ -646,4 +659,27 @@ ListWatchlistItemsUC = Annotated[
 RescoreWatchlistUC = Annotated[
     RescoreWatchlistUseCase,
     Depends(get_rescore_watchlist_use_case),
+]
+
+
+# =============================================================================
+# Metrics Use Cases
+# =============================================================================
+
+
+def get_page_metrics_history_use_case(
+    page_repo: PageRepo,
+    page_metrics_repo: PageMetricsRepo,
+) -> GetPageMetricsHistoryUseCase:
+    """Get GetPageMetricsHistory use case."""
+    return GetPageMetricsHistoryUseCase(
+        page_repository=page_repo,
+        page_metrics_repository=page_metrics_repo,
+        logger=get_logger("usecase.get_page_metrics_history"),
+    )
+
+
+GetPageMetricsHistoryUC = Annotated[
+    GetPageMetricsHistoryUseCase,
+    Depends(get_page_metrics_history_use_case),
 ]

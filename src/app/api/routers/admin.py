@@ -23,6 +23,10 @@ from src.app.api.schemas.admin import (
     AdminScanListResponse,
     AdminScanResponse,
 )
+from src.app.api.schemas.metrics import (
+    TriggerDailySnapshotRequest,
+    TriggerDailySnapshotResponse,
+)
 from src.app.core.domain.entities.keyword_run import KeywordRun
 from src.app.core.domain.entities.page import Page
 from src.app.core.domain.entities.scan import Scan
@@ -177,4 +181,42 @@ async def list_scans(
         total=len(scans),
         offset=offset,
         limit=limit,
+    )
+
+
+# =============================================================================
+# Metrics Admin Endpoints
+# =============================================================================
+
+
+@router.post(
+    "/metrics/daily-snapshot",
+    response_model=TriggerDailySnapshotResponse,
+    summary="Trigger daily metrics snapshot",
+    description="Dispatch a Celery task to record daily metrics for all pages.",
+)
+async def trigger_daily_snapshot(
+    request: TriggerDailySnapshotRequest = TriggerDailySnapshotRequest(),
+) -> TriggerDailySnapshotResponse:
+    """Trigger a daily metrics snapshot task.
+
+    This admin endpoint dispatches a Celery task to record daily metrics
+    snapshots for all pages.
+
+    The task will:
+    1. Retrieve all pages with existing scores
+    2. Create daily snapshots with current metrics
+    3. Store them for time series analysis
+    """
+    from src.app.infrastructure.celery.tasks import snapshot_daily_metrics_task
+
+    # Dispatch the task
+    task_result = snapshot_daily_metrics_task.delay(
+        snapshot_date=request.snapshot_date
+    )
+
+    return TriggerDailySnapshotResponse(
+        status="dispatched",
+        task_id=str(task_result.id),
+        snapshot_date=request.snapshot_date,
     )

@@ -1,10 +1,14 @@
 """Page endpoints."""
 
-from datetime import datetime
+from datetime import date, datetime
 
 from fastapi import APIRouter, Query
 
 from src.app.api.schemas.pages import PageResponse, PageListResponse
+from src.app.api.schemas.metrics import (
+    PageDailyMetricsResponse,
+    PageMetricsHistoryResponse,
+)
 from src.app.api.schemas.scoring import (
     ShopScoreResponse,
     ScoreComponentsResponse,
@@ -35,6 +39,7 @@ from src.app.api.dependencies import (
     ProductRepo,
     SyncProductsUC,
     BuildProductInsightsUC,
+    GetPageMetricsHistoryUC,
 )
 from src.app.core.domain.entities.page import Page
 from src.app.core.domain.entities.product import Product
@@ -550,3 +555,72 @@ async def get_product_insights(
     )
 
     return product_insights_to_entry(product_insight)
+
+
+# =============================================================================
+# Metrics History Endpoints
+# =============================================================================
+
+
+@router.get(
+    "/{page_id}/metrics/history",
+    response_model=PageMetricsHistoryResponse,
+    summary="Get page metrics history",
+    description=(
+        "Get historical daily metrics for a page. Returns time series data "
+        "ordered by date ascending (oldest first) for graph visualization."
+    ),
+    responses={
+        404: {"model": ErrorResponse, "description": "Page not found"},
+        500: {"model": ErrorResponse, "description": "Database error"},
+    },
+)
+async def get_page_metrics_history(
+    page_id: str,
+    get_metrics_uc: GetPageMetricsHistoryUC,
+    date_from: date | None = Query(
+        default=None,
+        description="Start date filter (inclusive, YYYY-MM-DD)",
+    ),
+    date_to: date | None = Query(
+        default=None,
+        description="End date filter (inclusive, YYYY-MM-DD)",
+    ),
+    limit: int | None = Query(
+        default=90,
+        ge=1,
+        le=365,
+        description="Maximum number of data points (default: 90, max: 365)",
+    ),
+) -> PageMetricsHistoryResponse:
+    """Get page metrics history for time series analysis.
+
+    Returns daily snapshots of key metrics (ads_count, shop_score, tier,
+    products_count) for the specified page. Results are ordered by date
+    ascending (oldest first) for easy time series visualization.
+
+    Use cases:
+    - Evolution graphs showing score/ads trends over time
+    - Weak signal detection for early warning indicators
+    - Performance tracking and analysis
+    """
+    result = await get_metrics_uc.execute(
+        page_id=page_id,
+        date_from=date_from,
+        date_to=date_to,
+        limit=limit,
+    )
+
+    return PageMetricsHistoryResponse(
+        page_id=result.page_id,
+        metrics=[
+            PageDailyMetricsResponse(
+                date=m.date,
+                ads_count=m.ads_count,
+                shop_score=m.shop_score,
+                tier=m.tier,
+                products_count=m.products_count,
+            )
+            for m in result.metrics
+        ],
+    )

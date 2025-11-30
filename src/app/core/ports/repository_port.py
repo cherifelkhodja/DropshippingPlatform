@@ -5,6 +5,8 @@ Interfaces for data persistence operations.
 
 from typing import Protocol, Sequence
 
+from datetime import date
+
 from ..domain.entities import (
     Page,
     Ad,
@@ -16,6 +18,7 @@ from ..domain.entities import (
     WatchlistItem,
     Alert,
     Product,
+    PageDailyMetrics,
 )
 from ..domain.value_objects import ScanId, RankingCriteria
 
@@ -549,6 +552,62 @@ class ProductRepository(Protocol):
 
         Returns:
             Total count of products for the page.
+
+        Raises:
+            RepositoryError: On database errors.
+        """
+        ...
+
+
+class PageMetricsRepository(Protocol):
+    """Port interface for PageDailyMetrics entity persistence.
+
+    Defines the contract for storing and retrieving daily metrics snapshots
+    for pages. Used for time series analysis and trend detection.
+
+    Usage:
+        This repository supports the Historisation & Time Series feature
+        (Sprint 7), enabling storage and retrieval of daily metrics
+        snapshots for evolution graphs and weak signal detection.
+    """
+
+    async def upsert_daily_metrics(
+        self, metrics: Sequence[PageDailyMetrics]
+    ) -> None:
+        """Upsert daily metrics snapshots.
+
+        Uses upsert logic (INSERT ... ON CONFLICT) to ensure only one
+        snapshot per page per date. If a snapshot already exists for
+        a (page_id, date) pair, it will be updated.
+
+        Args:
+            metrics: Sequence of PageDailyMetrics entities to upsert.
+
+        Raises:
+            RepositoryError: On database errors.
+        """
+        ...
+
+    async def list_page_metrics(
+        self,
+        page_id: str,
+        date_from: date | None = None,
+        date_to: date | None = None,
+        limit: int | None = None,
+    ) -> list[PageDailyMetrics]:
+        """List daily metrics for a page with optional date filters.
+
+        Returns metrics ordered by date ascending (oldest first) for
+        easy time series visualization in graphs.
+
+        Args:
+            page_id: The page identifier to filter by.
+            date_from: Optional start date (inclusive).
+            date_to: Optional end date (inclusive).
+            limit: Optional maximum number of snapshots to return.
+
+        Returns:
+            List of PageDailyMetrics entities ordered by date ASC.
 
         Raises:
             RepositoryError: On database errors.
