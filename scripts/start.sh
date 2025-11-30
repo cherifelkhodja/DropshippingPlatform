@@ -11,7 +11,13 @@ while ! pg_isready -h ${DB_HOST:-postgres} -p ${DB_PORT:-5432} -U ${POSTGRES_USE
 done
 echo "Database is ready!"
 
-# Run migrations
+# If arguments are passed (e.g., celery command), execute them directly
+if [ $# -gt 0 ]; then
+    echo "Starting with custom command: $@"
+    exec "$@"
+fi
+
+# Default behavior: run migrations and start uvicorn
 echo "Running database migrations..."
 alembic upgrade head
 echo "Migrations complete!"
