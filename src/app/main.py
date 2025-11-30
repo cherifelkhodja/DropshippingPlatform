@@ -17,6 +17,7 @@ from src.app.api.routers import (
     health_router,
     keywords_router,
     pages_router,
+    products_router,
     scans_router,
     watchlists_router,
 )
@@ -103,6 +104,7 @@ def create_app() -> FastAPI:
     app.include_router(alerts_router, prefix="/api/v1")
     app.include_router(keywords_router, prefix="/api/v1")
     app.include_router(pages_router, prefix="/api/v1")
+    app.include_router(products_router, prefix="/api/v1")
     app.include_router(scans_router, prefix="/api/v1")
     app.include_router(admin_router, prefix="/api/v1")
     app.include_router(watchlists_router, prefix="/api/v1")
