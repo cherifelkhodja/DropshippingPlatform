@@ -27,6 +27,10 @@ from src.app.core.domain import (
     Category,
 )
 from src.app.core.domain.entities.alert import Alert
+from src.app.core.domain.entities.creative_analysis import (
+    CreativeAnalysis,
+    CreativeTextAnalysisResult,
+)
 from src.app.core.ports import (
     MetaAdsPort,
     HtmlScraperPort,
@@ -668,3 +672,56 @@ def mock_product_extractor_port() -> AsyncMock:
 def fake_page_metrics_repo() -> FakePageMetricsRepository:
     """Return a fake page metrics repository."""
     return FakePageMetricsRepository()
+
+
+class FakeCreativeAnalysisRepository:
+    """Fake creative analysis repository for testing."""
+
+    def __init__(self) -> None:
+        self.analyses: dict[str, CreativeAnalysis] = {}  # id -> CreativeAnalysis
+        self.by_ad_id: dict[str, CreativeAnalysis] = {}  # ad_id -> CreativeAnalysis
+
+    async def save(self, analysis: CreativeAnalysis) -> None:
+        self.analyses[analysis.id] = analysis
+        self.by_ad_id[analysis.ad_id] = analysis
+
+    async def get_by_ad_id(self, ad_id: str) -> CreativeAnalysis | None:
+        return self.by_ad_id.get(ad_id)
+
+    async def list_for_page(self, page_id: str, ad_ids: list[str]) -> list[CreativeAnalysis]:
+        return [a for a in self.analyses.values() if a.ad_id in ad_ids]
+
+
+class FakeCreativeTextAnalyzer:
+    """Fake creative text analyzer for testing."""
+
+    def __init__(
+        self,
+        default_score: float = 75.0,
+        default_sentiment: str = "positive",
+    ) -> None:
+        self.default_score = default_score
+        self.default_sentiment = default_sentiment
+        self.analyze_calls: list[str] = []
+
+    def analyze_text(self, text: str) -> CreativeTextAnalysisResult:
+        self.analyze_calls.append(text)
+        return CreativeTextAnalysisResult(
+            creative_score=self.default_score,
+            style_tags=["bold", "modern"],
+            angle_tags=["benefit-driven"],
+            tone_tags=["casual"],
+            sentiment=self.default_sentiment,
+        )
+
+
+@pytest.fixture
+def fake_creative_analysis_repo() -> FakeCreativeAnalysisRepository:
+    """Return a fake creative analysis repository."""
+    return FakeCreativeAnalysisRepository()
+
+
+@pytest.fixture
+def fake_creative_text_analyzer() -> FakeCreativeTextAnalyzer:
+    """Return a fake creative text analyzer."""
+    return FakeCreativeTextAnalyzer()

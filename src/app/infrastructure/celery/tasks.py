@@ -698,3 +698,90 @@ def snapshot_daily_metrics_task(
             exc_info=True,
         )
         raise self.retry(exc=exc)
+
+
+@celery_app.task(
+    bind=True,
+    base=AsyncTask,
+    name="tasks.analyze_creatives_for_page",
+    max_retries=2,
+    default_retry_delay=120,
+)
+def analyze_creatives_for_page_task(
+    self: AsyncTask,
+    page_id: str,
+) -> dict[str, Any]:
+    """Analyze all ad creatives for a page.
+
+    Executes BuildPageCreativeInsightsUseCase to:
+    1. Fetch all ads for the page
+    2. For each ad, analyze creative text (or use cached analysis)
+    3. Extract quality scores, marketing tags, and sentiment
+    4. Build aggregated page-level creative insights
+
+    This task is used by:
+    - Admin endpoint for manual triggering
+    - Future: Scheduled analysis of all pages
+
+    Args:
+        page_id: The page identifier to analyze creatives for.
+
+    Returns:
+        Dict with analysis results including ads_analyzed, new_analyses,
+        avg_score, and best_score.
+    """
+    configure_logging(level="INFO")
+
+    logger.info(
+        "Starting creative analysis for page",
+        extra={
+            "page_id": page_id,
+            "task_id": self.request.id,
+        },
+    )
+
+    async def _execute() -> dict[str, Any]:
+        container = get_container()
+        async with container.execution_context() as (db_session, _http_session):
+            use_case = await container.get_build_page_creative_insights_use_case(
+                db_session=db_session,
+            )
+
+            result = await use_case.execute(
+                page_id=page_id,
+                top_n=5,
+            )
+
+            return {
+                "page_id": result.page_id,
+                "status": "completed" if not result.error else "completed_with_warnings",
+                "ads_analyzed": result.ads_analyzed,
+                "cached_analyses": result.cached_analyses,
+                "new_analyses": result.new_analyses,
+                "avg_score": round(result.insights.avg_score, 1),
+                "best_score": round(result.insights.best_score, 1),
+                "quality_tier": result.insights.quality_tier,
+                "error": result.error,
+            }
+
+    try:
+        result = self.run_async(_execute())
+        logger.info(
+            "Creative analysis completed for page",
+            extra={
+                "page_id": page_id,
+                "result": result,
+            },
+        )
+        return result
+
+    except Exception as exc:
+        logger.error(
+            "Creative analysis failed for page",
+            extra={
+                "page_id": page_id,
+                "error": str(exc),
+            },
+            exc_info=True,
+        )
+        raise self.retry(exc=exc)

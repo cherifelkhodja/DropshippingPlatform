@@ -13,6 +13,7 @@ from src.app.infrastructure.db.models.shop_score_model import ShopScoreModel
 from src.app.infrastructure.db.models.watchlist_model import WatchlistModel, WatchlistItemModel
 from src.app.infrastructure.db.models.product_model import ProductModel
 from src.app.infrastructure.db.models.page_daily_metrics_model import PageDailyMetricsModel
+from src.app.infrastructure.db.models.creative_analysis_model import CreativeAnalysisModel
 
 __all__ = [
     "Base",
@@ -26,4 +27,5 @@ __all__ = [
     "WatchlistItemModel",
     "ProductModel",
     "PageDailyMetricsModel",
+    "CreativeAnalysisModel",
 ]

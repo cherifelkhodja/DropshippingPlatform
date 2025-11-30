@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.app.api.routers import (
     admin_router,
     alerts_router,
+    creative_insights_router,
     health_router,
     keywords_router,
     pages_router,
@@ -108,6 +109,7 @@ def create_app() -> FastAPI:
     app.include_router(scans_router, prefix="/api/v1")
     app.include_router(admin_router, prefix="/api/v1")
     app.include_router(watchlists_router, prefix="/api/v1")
+    app.include_router(creative_insights_router, prefix="/api/v1")
 
     return app
 

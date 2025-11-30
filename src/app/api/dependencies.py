@@ -47,6 +47,10 @@ from src.app.adapters.outbound.repositories.product_repository import (
 from src.app.adapters.outbound.repositories.page_metrics_repository import (
     PostgresPageMetricsRepository,
 )
+from src.app.adapters.outbound.repositories.creative_analysis_repository import (
+    PostgresCreativeAnalysisRepository,
+)
+from src.app.adapters.outbound.creative_text_analyzer import HeuristicCreativeTextAnalyzer
 from src.app.adapters.outbound.scraper.html_scraper import HtmlScraperClient
 from src.app.adapters.outbound.product_extractor.shopify_product_extractor import (
     ShopifyProductExtractor,
@@ -63,7 +67,9 @@ from src.app.core.ports.repository_port import (
     AlertRepository,
     ProductRepository,
     PageMetricsRepository,
+    CreativeAnalysisRepository,
 )
+from src.app.core.ports.creative_text_analyzer_port import CreativeTextAnalyzerPort
 from src.app.core.ports.task_dispatcher_port import TaskDispatcherPort
 from src.app.core.usecases.analyse_page_deep import AnalysePageDeepUseCase
 from src.app.core.usecases.analyse_website import AnalyseWebsiteUseCase
@@ -77,6 +83,7 @@ from src.app.core.usecases.search_ads_by_keyword import SearchAdsByKeywordUseCas
 from src.app.core.usecases.sync_products_for_page import SyncProductsForPageUseCase
 from src.app.core.usecases.build_product_insights import BuildProductInsightsForPageUseCase
 from src.app.core.usecases.metrics import GetPageMetricsHistoryUseCase
+from src.app.core.usecases.creative_insights import BuildPageCreativeInsightsUseCase
 from src.app.core.usecases.watchlists import (
     CreateWatchlistUseCase,
     GetWatchlistUseCase,
@@ -268,6 +275,28 @@ def get_page_metrics_repository(session: DbSession) -> PostgresPageMetricsReposi
 
 
 PageMetricsRepo = Annotated[PageMetricsRepository, Depends(get_page_metrics_repository)]
+
+
+def get_creative_analysis_repository(session: DbSession) -> PostgresCreativeAnalysisRepository:
+    """Get creative analysis repository."""
+    return PostgresCreativeAnalysisRepository(session)
+
+
+CreativeAnalysisRepo = Annotated[
+    CreativeAnalysisRepository,
+    Depends(get_creative_analysis_repository),
+]
+
+
+def get_creative_text_analyzer() -> HeuristicCreativeTextAnalyzer:
+    """Get creative text analyzer (V1 heuristic implementation)."""
+    return HeuristicCreativeTextAnalyzer()
+
+
+CreativeTextAnalyzer = Annotated[
+    CreativeTextAnalyzerPort,
+    Depends(get_creative_text_analyzer),
+]
 
 
 # =============================================================================
@@ -557,6 +586,31 @@ SyncProductsUC = Annotated[
 BuildProductInsightsUC = Annotated[
     BuildProductInsightsForPageUseCase,
     Depends(get_build_product_insights_use_case),
+]
+
+
+def get_build_page_creative_insights_use_case(
+    page_repo: PageRepo,
+    ads_repo: AdsRepo,
+    creative_analysis_repo: CreativeAnalysisRepo,
+    text_analyzer: CreativeTextAnalyzer,
+) -> BuildPageCreativeInsightsUseCase:
+    """Get BuildPageCreativeInsights use case.
+
+    Uses injected repository and analyzer dependencies for cleaner composition.
+    """
+    return BuildPageCreativeInsightsUseCase(
+        page_repository=page_repo,
+        ads_repository=ads_repo,
+        creative_analysis_repository=creative_analysis_repo,
+        text_analyzer=text_analyzer,
+        logger=get_logger("usecase.creative_insights"),
+    )
+
+
+BuildPageCreativeInsightsUC = Annotated[
+    BuildPageCreativeInsightsUseCase,
+    Depends(get_build_page_creative_insights_use_case),
 ]
 
 

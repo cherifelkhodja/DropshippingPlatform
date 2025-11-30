@@ -33,6 +33,13 @@ from .product_insights import (
     MatchStrength,
 )
 from .page_daily_metrics import PageDailyMetrics, PageMetricsHistoryResult
+from .creative_analysis import (
+    CreativeAnalysis,
+    CreativeTextAnalysisResult,
+    PageCreativeInsights,
+    Sentiment,
+    SentimentType,
+)
 
 __all__ = [
     # Page
@@ -84,4 +91,10 @@ __all__ = [
     # Page Daily Metrics (time series)
     "PageDailyMetrics",
     "PageMetricsHistoryResult",
+    # Creative Analysis (AI Marketing)
+    "CreativeAnalysis",
+    "CreativeTextAnalysisResult",
+    "PageCreativeInsights",
+    "Sentiment",
+    "SentimentType",
 ]
