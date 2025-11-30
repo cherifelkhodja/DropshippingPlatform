@@ -15,13 +15,9 @@ from ..domain.entities.alert import (
     ALERT_TYPE_TIER_UP,
     ALERT_TYPE_TIER_DOWN,
 )
+from ..domain.config import SCORE_CHANGE_THRESHOLD, ADS_BOOST_RATIO_THRESHOLD
 from ..domain.tiering import TIERS_ORDERED
 from ..ports import AlertRepository, LoggingPort
-
-
-# Alert detection thresholds
-SCORE_CHANGE_THRESHOLD = 10.0  # Points required for SCORE_JUMP/SCORE_DROP
-ADS_BOOST_RATIO_THRESHOLD = 1.0  # 100% increase (2x) for NEW_ADS_BOOST
 
 
 @dataclass

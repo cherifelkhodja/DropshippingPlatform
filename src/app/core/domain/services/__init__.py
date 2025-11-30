@@ -14,6 +14,10 @@ from .product_ad_matcher import (
     check_text_similarity,
     match_product_to_ad,
     match_product_to_ads,
+)
+
+# Re-export thresholds from centralized config for backward compatibility
+from ..config import (
     STRONG_MATCH_THRESHOLD,
     MEDIUM_MATCH_THRESHOLD,
     WEAK_MATCH_THRESHOLD,

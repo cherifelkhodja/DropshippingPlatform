@@ -11,15 +11,15 @@ from difflib import SequenceMatcher
 from ..entities.product import Product
 from ..entities.ad import Ad
 from ..entities.product_insights import AdMatch, MatchStrength
-
-
-# Match score thresholds
-STRONG_MATCH_THRESHOLD = 0.8
-MEDIUM_MATCH_THRESHOLD = 0.5
-WEAK_MATCH_THRESHOLD = 0.3
-
-# Text similarity threshold for weak matches
-TEXT_SIMILARITY_THRESHOLD = 0.6
+from ..config import (
+    STRONG_MATCH_THRESHOLD,
+    MEDIUM_MATCH_THRESHOLD,
+    WEAK_MATCH_THRESHOLD,
+    TEXT_SIMILARITY_THRESHOLD,
+    DEFAULT_URL_MATCH_WEIGHT,
+    DEFAULT_HANDLE_MATCH_WEIGHT,
+    DEFAULT_TEXT_SIMILARITY_WEIGHT,
+)
 
 
 @dataclass(frozen=True)
@@ -34,9 +34,9 @@ class MatchConfig:
         min_score_threshold: Minimum score to consider a match valid.
     """
 
-    url_match_weight: float = 1.0
-    handle_match_weight: float = 0.7
-    text_similarity_weight: float = 0.4
+    url_match_weight: float = DEFAULT_URL_MATCH_WEIGHT
+    handle_match_weight: float = DEFAULT_HANDLE_MATCH_WEIGHT
+    text_similarity_weight: float = DEFAULT_TEXT_SIMILARITY_WEIGHT
     text_similarity_threshold: float = TEXT_SIMILARITY_THRESHOLD
     min_score_threshold: float = WEAK_MATCH_THRESHOLD
 

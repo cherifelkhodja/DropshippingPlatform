@@ -1,7 +1,7 @@
 # PROJECT MEMORY — Dropshipping Platform
 
 > **Purpose**: Persistent memory file for AI assistants working on this project.
-> **Last Updated**: Sprint 2.1 (v0.2.1 released)
+> **Last Updated**: v0.6.3 (Sprint 6 + Audit complete)
 > **Maintainer**: Claude Code / Tech Lead
 
 ---
@@ -11,9 +11,9 @@
 | Key | Value |
 |-----|-------|
 | **Project Name** | Dropshipping Platform |
-| **Current Version** | v0.2.1 |
-| **Current Sprint** | Sprint 4.1 — Tiering & Scoring Consistency (completed) |
-| **Last Action** | Centralized tiering logic, added snapshot tests |
+| **Current Version** | v0.6.3 |
+| **Current Sprint** | Sprint 6.3 — Product Insights API + Audit (completed) |
+| **Last Action** | Product insights API, centralized config, migration 0006 |
 | **Architecture** | Hexagonal (Ports & Adapters) |
 | **Python Version** | 3.11+ |
 | **Package Manager** | uv (modern pyproject.toml) |
@@ -465,7 +465,7 @@ DropshippingPlatform/
   - API : /api/v1/watchlists (+ /items, /scan_now).
 
 - Rescans :
-  - RescoreWatchlistUseCase : déclenche compute_shop_score pour toutes les pages d’une watchlist.
+  - RescoreWatchlistUseCase : déclenche compute_shop_score pour toutes les pages d'une watchlist.
   - Task Celery rescore_all_watchlists_task : rescan quotidien de toutes les watchlists actives (scheduled à 3h UTC).
   - Endpoint : POST /api/v1/watchlists/{id}/scan_now (202 Accepted + nombre de tasks dispatchées).
 
@@ -480,6 +480,80 @@ DropshippingPlatform/
   - API :
     - GET /api/v1/alerts/{page_id} (limit, offset)
     - GET /api/v1/alerts (recent global)
+
+
+### Sprint 6 — Product Domain & Insights (COMPLETED)
+
+#### Sprint 6.1 — Product Domain & Sync
+- **Domain Layer**:
+  - `Product` entity (id, page_id, handle, title, url, image_url, price, synced_at)
+  - `ProductExtractorPort` protocol for fetching products from Shopify stores
+- **Ports & Adapters**:
+  - `ProductRepository` port: upsert_many, list_by_page, get_by_id, count_by_page
+  - `PostgresProductRepository` implementation with upsert (ON CONFLICT)
+  - `ProductModel` ORM model + mapper
+  - `ShopifyProductExtractor` adapter (fetches from /products.json API)
+- **Use Case**:
+  - `SyncProductsForPageUseCase`: orchestrates product sync for Shopify stores
+- **API Endpoints**:
+  - `GET /pages/{page_id}/products` - List products with pagination
+  - `POST /pages/{page_id}/products/sync` - Trigger product sync
+- **Database**: Migration 0005 (products table with UniqueConstraint)
+
+#### Sprint 6.2 — Product-Ads Matching & Insights Engine
+- **Domain Layer**:
+  - `ProductInsights` entity (product, ads_count, distinct_creatives, matches, etc.)
+  - `AdMatch` value object (ad, score, strength, reasons)
+  - `MatchStrength` enum (STRONG, MEDIUM, WEAK, NONE)
+- **Domain Services**:
+  - `product_ad_matcher.py`:
+    - URL matching (strong): direct URL or handle in ad link
+    - Handle matching (medium): product handle in ad text
+    - Text similarity (weak): fuzzy matching via SequenceMatcher
+  - `MatchConfig` dataclass for customizable weights/thresholds
+- **Use Case**:
+  - `BuildProductInsightsForPageUseCase`:
+    - Fetches products and ads for a page
+    - Runs matching heuristics
+    - Computes aggregated insights (promoted count, match scores)
+
+#### Sprint 6.3 — Product Insights API
+- **API Schemas** (`products.py`):
+  - `MatchStrengthEnum`, `AdMatchResponse`, `ProductInsightsData`
+  - `ProductInsightsEntry`, `PageProductInsightsSummary`
+  - `PageProductInsightsResponse` with pagination
+  - `ProductInsightsSortBy` enum (ads_count, match_score, last_seen_at)
+- **API Endpoints**:
+  - `GET /pages/{page_id}/products/insights` - Full insights with sorting/pagination
+  - `GET /pages/{page_id}/products/{product_id}/insights` - Single product insights
+  - `GET /products/{product_id}` - Direct product access
+- **DI Wiring**: `BuildProductInsightsUC` dependency injection
+- **Integration Tests**: 14 tests for product insights endpoints
+
+### v0.6.3 — Audit & Cleanup (COMPLETED)
+
+- **Architecture Verification**:
+  - Confirmed API routers depend only on ports/usecases (no adapter imports) ✓
+  - Confirmed domain services only depend on domain entities ✓
+
+- **Database Indexes**:
+  - Migration 0006: Added composite indexes for query optimization
+    - `ix_shop_scores_page_id_created_at_desc` (shop_scores)
+    - `ix_alerts_page_id_created_at_desc` (alerts)
+
+- **Centralized Business Configuration**:
+  - New module: `core/domain/config/market_intel_config.py`
+  - Alert thresholds: `SCORE_CHANGE_THRESHOLD`, `ADS_BOOST_RATIO_THRESHOLD`
+  - Match thresholds: `STRONG/MEDIUM/WEAK_MATCH_THRESHOLD`, `TEXT_SIMILARITY_THRESHOLD`
+  - Match weights: `DEFAULT_URL/HANDLE/TEXT_SIMILARITY_WEIGHT`
+  - Config classes: `AlertThresholds`, `MatchThresholds`, `MatchWeights`
+  - Updated consumers: `detect_alerts_for_page.py`, `product_ad_matcher.py`
+
+- **Celery Task Resilience**:
+  - Verified `compute_shop_score_task` has alert detection in try/except (best-effort)
+  - Verified `rescore_all_watchlists_task` has per-watchlist error handling
+
+- **Integration Tests**: 145 tests collected and verified executable
 
 
 ## 7. IMPORTANT CONVENTIONS
