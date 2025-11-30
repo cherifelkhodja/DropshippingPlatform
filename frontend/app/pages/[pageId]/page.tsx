@@ -15,6 +15,15 @@ import {
   Tag,
   Calendar,
   RefreshCw,
+  Bell,
+  Eye,
+  Plus,
+  ChevronRight,
+  AlertTriangle,
+  TrendingDown,
+  ChevronUp,
+  ChevronDown,
+  Zap,
 } from "lucide-react";
 import {
   Card,
@@ -37,6 +46,10 @@ import {
   getPageScore,
   getPageMetricsHistory,
   getPageProductInsights,
+  getPageAlerts,
+  getPageWatchlists,
+  getWatchlists,
+  addPageToWatchlist,
 } from "@/lib/api";
 import type {
   PageResponse,
@@ -44,6 +57,9 @@ import type {
   PageDailyMetrics,
   PageProductInsightsResponse,
   ProductInsightsEntry,
+  AlertResponse,
+  WatchlistResponse,
+  WatchlistSummary,
 } from "@/lib/types/api";
 
 /**
@@ -63,6 +79,10 @@ export default function PageDetailPage() {
   const [metricsHistory, setMetricsHistory] = useState<PageDailyMetrics[]>([]);
   const [productInsights, setProductInsights] =
     useState<PageProductInsightsResponse | null>(null);
+  const [alerts, setAlerts] = useState<AlertResponse[]>([]);
+  const [pageWatchlists, setPageWatchlists] = useState<WatchlistResponse[]>([]);
+  const [allWatchlists, setAllWatchlists] = useState<WatchlistSummary[]>([]);
+  const [showAddToWatchlist, setShowAddToWatchlist] = useState(false);
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -73,11 +93,14 @@ export default function PageDetailPage() {
 
     try {
       // Fetch all data in parallel
-      const [pageData, scoreData, metricsData, insightsData] = await Promise.allSettled([
+      const [pageData, scoreData, metricsData, insightsData, alertsData, watchlistsData, allWatchlistsData] = await Promise.allSettled([
         getPageDetails(pageId),
         getPageScore(pageId),
         getPageMetricsHistory(pageId, { limit: 90 }),
         getPageProductInsights(pageId, { limit: 10, sort_by: "ads_count" }),
+        getPageAlerts(pageId, 10),
+        getPageWatchlists(pageId),
+        getWatchlists(),
       ]);
 
       // Handle page data (required)
@@ -101,6 +124,21 @@ export default function PageDetailPage() {
       if (insightsData.status === "fulfilled") {
         setProductInsights(insightsData.value);
       }
+
+      // Handle alerts (may be empty)
+      if (alertsData.status === "fulfilled") {
+        setAlerts(alertsData.value.items);
+      }
+
+      // Handle page watchlists
+      if (watchlistsData.status === "fulfilled") {
+        setPageWatchlists(watchlistsData.value.watchlists);
+      }
+
+      // Handle all watchlists (for add to watchlist dropdown)
+      if (allWatchlistsData.status === "fulfilled") {
+        setAllWatchlists(allWatchlistsData.value.items);
+      }
     } catch (err) {
       console.error("Error fetching page data:", err);
       setError(err instanceof Error ? err.message : "Failed to load page");
@@ -108,6 +146,36 @@ export default function PageDetailPage() {
       setIsLoading(false);
     }
   }, [pageId]);
+
+  const handleAddToWatchlist = async (watchlistId: string) => {
+    try {
+      await addPageToWatchlist(watchlistId, pageId);
+      setShowAddToWatchlist(false);
+      // Refresh watchlists for this page
+      const watchlistsData = await getPageWatchlists(pageId);
+      setPageWatchlists(watchlistsData.watchlists);
+    } catch (err) {
+      console.error("Error adding page to watchlist:", err);
+    }
+  };
+
+  // Get alert icon based on type
+  const getAlertIcon = (type: string) => {
+    switch (type) {
+      case "NEW_ADS_BOOST":
+        return <Zap className="w-4 h-4 text-yellow-400" />;
+      case "SCORE_JUMP":
+        return <TrendingUp className="w-4 h-4 text-green-400" />;
+      case "SCORE_DROP":
+        return <TrendingDown className="w-4 h-4 text-red-400" />;
+      case "TIER_UP":
+        return <ChevronUp className="w-4 h-4 text-green-400" />;
+      case "TIER_DOWN":
+        return <ChevronDown className="w-4 h-4 text-red-400" />;
+      default:
+        return <AlertTriangle className="w-4 h-4 text-slate-400" />;
+    }
+  };
 
   useEffect(() => {
     fetchData();
@@ -509,6 +577,140 @@ export default function PageDetailPage() {
             )}
           </CardBody>
         </Card>
+
+        {/* Watchlists & Alerts Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+          {/* Watchlists */}
+          <Card>
+            <CardHeader
+              action={
+                <div className="relative">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowAddToWatchlist(!showAddToWatchlist)}
+                    className="flex items-center gap-1"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add to Watchlist
+                  </Button>
+                  {showAddToWatchlist && (
+                    <div className="absolute right-0 top-full mt-1 w-56 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-10">
+                      {allWatchlists.filter(w => !pageWatchlists.some(pw => pw.id === w.id)).length === 0 ? (
+                        <div className="p-3 text-sm text-slate-400">
+                          {allWatchlists.length === 0 ? "No watchlists created" : "Already in all watchlists"}
+                        </div>
+                      ) : (
+                        <div className="py-1">
+                          {allWatchlists
+                            .filter(w => !pageWatchlists.some(pw => pw.id === w.id))
+                            .map(watchlist => (
+                              <button
+                                key={watchlist.id}
+                                onClick={() => handleAddToWatchlist(watchlist.id)}
+                                className="w-full px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-700 transition-colors"
+                              >
+                                {watchlist.name}
+                              </button>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              }
+            >
+              <div className="flex items-center gap-2">
+                <Eye className="w-5 h-5 text-blue-400" />
+                Watchlists
+              </div>
+            </CardHeader>
+            <CardBody>
+              {pageWatchlists.length > 0 ? (
+                <div className="space-y-2">
+                  {pageWatchlists.map(watchlist => (
+                    <Link
+                      key={watchlist.id}
+                      href={`/watchlists/${encodeURIComponent(watchlist.id)}`}
+                      className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg hover:bg-slate-800 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Eye className="w-4 h-4 text-blue-400" />
+                        <span className="text-slate-200">{watchlist.name}</span>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-slate-500" />
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-6 text-center text-slate-500">
+                  <Eye className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">Not in any watchlist</p>
+                </div>
+              )}
+            </CardBody>
+          </Card>
+
+          {/* Recent Alerts */}
+          <Card>
+            <CardHeader
+              action={
+                alerts.length > 0 && (
+                  <Link
+                    href={`/alerts?page_id=${encodeURIComponent(pageId)}`}
+                    className="text-sm text-blue-400 hover:text-blue-300"
+                  >
+                    View all
+                  </Link>
+                )
+              }
+            >
+              <div className="flex items-center gap-2">
+                <Bell className="w-5 h-5 text-orange-400" />
+                Recent Alerts
+              </div>
+            </CardHeader>
+            <CardBody>
+              {alerts.length > 0 ? (
+                <div className="space-y-2">
+                  {alerts.slice(0, 5).map(alert => (
+                    <div
+                      key={alert.id}
+                      className="flex items-start gap-3 p-3 bg-slate-800/50 rounded-lg"
+                    >
+                      <div className="mt-0.5">{getAlertIcon(alert.alert_type)}</div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-slate-200 line-clamp-1">
+                          {alert.message}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          {new Date(alert.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <Badge
+                        variant={
+                          alert.severity === "critical"
+                            ? "error"
+                            : alert.severity === "warning"
+                            ? "warning"
+                            : "info"
+                        }
+                        size="sm"
+                      >
+                        {alert.severity}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-6 text-center text-slate-500">
+                  <Bell className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No alerts for this page</p>
+                </div>
+              )}
+            </CardBody>
+          </Card>
+        </div>
 
         {/* Back button */}
         <div className="mt-8">

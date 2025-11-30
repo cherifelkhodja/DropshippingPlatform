@@ -14,6 +14,7 @@ from src.app.api.dependencies import (
     PageRepo,
     ScanRepo,
     get_admin_auth,
+    GetMonitoringSummaryUC,
 )
 from src.app.api.schemas.admin import (
     AdminKeywordListResponse,
@@ -22,6 +23,7 @@ from src.app.api.schemas.admin import (
     AdminPageResponse,
     AdminScanListResponse,
     AdminScanResponse,
+    MonitoringSummaryResponse,
 )
 from src.app.api.schemas.metrics import (
     TriggerDailySnapshotRequest,
@@ -219,4 +221,38 @@ async def trigger_daily_snapshot(
         status="dispatched",
         task_id=str(task_result.id),
         snapshot_date=request.snapshot_date,
+    )
+
+
+# =============================================================================
+# Monitoring Summary Endpoints (Sprint 8.1)
+# =============================================================================
+
+
+@router.get(
+    "/monitoring/summary",
+    response_model=MonitoringSummaryResponse,
+    summary="Get system monitoring summary",
+    description="Get aggregated system statistics for monitoring dashboard.",
+)
+async def get_monitoring_summary(
+    monitoring_uc: GetMonitoringSummaryUC,
+) -> MonitoringSummaryResponse:
+    """Get a summary of system status.
+
+    Returns aggregated statistics including:
+    - Total pages and pages with scores
+    - Alert counts for last 24h and 7d
+    - Metrics snapshot information
+    """
+    summary = await monitoring_uc.execute()
+
+    return MonitoringSummaryResponse(
+        total_pages=summary.total_pages,
+        pages_with_scores=summary.pages_with_scores,
+        alerts_last_24h=summary.alerts_last_24h,
+        alerts_last_7d=summary.alerts_last_7d,
+        last_metrics_snapshot_date=summary.last_metrics_snapshot_date,
+        metrics_snapshots_count=summary.metrics_snapshots_count,
+        generated_at=summary.generated_at,
     )

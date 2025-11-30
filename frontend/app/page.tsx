@@ -9,6 +9,13 @@ import {
   Calendar,
   ExternalLink,
   ChevronRight,
+  Bell,
+  Eye,
+  AlertTriangle,
+  Zap,
+  TrendingDown,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import {
   Card,
@@ -23,8 +30,8 @@ import {
   type Column,
 } from "@/components/ui";
 import { Header, PageContent, RefreshButton } from "@/components/layout";
-import { getTopPages, getRankedPages, listPages } from "@/lib/api";
-import type { TopShopEntry, RankedShopsResponse } from "@/lib/types/api";
+import { getTopPages, getRankedPages, listPages, getRecentAlerts, getWatchlists } from "@/lib/api";
+import type { TopShopEntry, AlertResponse, WatchlistSummary } from "@/lib/types/api";
 
 interface DashboardStats {
   totalPages: number;
@@ -42,8 +49,28 @@ interface DashboardStats {
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [topPages, setTopPages] = useState<TopShopEntry[]>([]);
+  const [recentAlerts, setRecentAlerts] = useState<AlertResponse[]>([]);
+  const [watchlists, setWatchlists] = useState<WatchlistSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Get alert icon based on type
+  const getAlertIcon = (type: string) => {
+    switch (type) {
+      case "NEW_ADS_BOOST":
+        return <Zap className="w-4 h-4 text-yellow-400" />;
+      case "SCORE_JUMP":
+        return <TrendingUp className="w-4 h-4 text-green-400" />;
+      case "SCORE_DROP":
+        return <TrendingDown className="w-4 h-4 text-red-400" />;
+      case "TIER_UP":
+        return <ChevronUp className="w-4 h-4 text-green-400" />;
+      case "TIER_DOWN":
+        return <ChevronDown className="w-4 h-4 text-red-400" />;
+      default:
+        return <AlertTriangle className="w-4 h-4 text-slate-400" />;
+    }
+  };
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -51,22 +78,34 @@ export default function DashboardPage() {
 
     try {
       // Fetch data in parallel
-      const [topPagesResponse, allPagesResponse, xxlTierResponse, xlTierResponse] =
-        await Promise.all([
+      const [topPagesResponse, allPagesResponse, xxlTierResponse, xlTierResponse, alertsResponse, watchlistsResponse] =
+        await Promise.allSettled([
           getTopPages(20, 0),
           listPages({ page_size: 1 }), // Get total count
           getRankedPages({ tier: "XXL", limit: 1 }), // Get XXL tier count
           getRankedPages({ tier: "XL", limit: 1 }), // Get XL tier count
+          getRecentAlerts(5),
+          getWatchlists(5),
         ]);
 
-      setTopPages(topPagesResponse.items);
+      if (topPagesResponse.status === "fulfilled") {
+        setTopPages(topPagesResponse.value.items);
+      }
+
+      if (alertsResponse.status === "fulfilled") {
+        setRecentAlerts(alertsResponse.value.items);
+      }
+
+      if (watchlistsResponse.status === "fulfilled") {
+        setWatchlists(watchlistsResponse.value.items);
+      }
 
       setStats({
-        totalPages: allPagesResponse.total,
+        totalPages: allPagesResponse.status === "fulfilled" ? allPagesResponse.value.total : 0,
         // TODO: Backend should expose shopify count directly
         shopifyPages: 0,
-        tierXXLCount: xxlTierResponse.total,
-        tierXLCount: xlTierResponse.total,
+        tierXXLCount: xxlTierResponse.status === "fulfilled" ? xxlTierResponse.value.total : 0,
+        tierXLCount: xlTierResponse.status === "fulfilled" ? xlTierResponse.value.total : 0,
         // TODO: Backend should expose last snapshot date
         lastSnapshotDate: null,
       });
@@ -224,6 +263,108 @@ export default function DashboardPage() {
           </CardBody>
         </Card>
 
+        {/* Alerts & Watchlists Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+          {/* Recent Alerts */}
+          <Card>
+            <CardHeader
+              action={
+                <Link
+                  href="/alerts"
+                  className="text-sm text-blue-400 hover:text-blue-300"
+                >
+                  View all
+                </Link>
+              }
+            >
+              <div className="flex items-center gap-2">
+                <Bell className="w-5 h-5 text-orange-400" />
+                Recent Alerts
+              </div>
+            </CardHeader>
+            <CardBody>
+              {recentAlerts.length > 0 ? (
+                <div className="space-y-2">
+                  {recentAlerts.map((alert) => (
+                    <Link
+                      key={alert.id}
+                      href={`/pages/${encodeURIComponent(alert.page_id)}`}
+                      className="flex items-start gap-3 p-3 bg-slate-800/50 rounded-lg hover:bg-slate-800 transition-colors"
+                    >
+                      <div className="mt-0.5">{getAlertIcon(alert.alert_type)}</div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-slate-200 line-clamp-1">
+                          {alert.message}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          {new Date(alert.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-6 text-center text-slate-500">
+                  <Bell className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No recent alerts</p>
+                </div>
+              )}
+            </CardBody>
+          </Card>
+
+          {/* Watchlists */}
+          <Card>
+            <CardHeader
+              action={
+                <Link
+                  href="/watchlists"
+                  className="text-sm text-blue-400 hover:text-blue-300"
+                >
+                  View all
+                </Link>
+              }
+            >
+              <div className="flex items-center gap-2">
+                <Eye className="w-5 h-5 text-blue-400" />
+                Your Watchlists
+              </div>
+            </CardHeader>
+            <CardBody>
+              {watchlists.length > 0 ? (
+                <div className="space-y-2">
+                  {watchlists.map((watchlist) => (
+                    <Link
+                      key={watchlist.id}
+                      href={`/watchlists/${encodeURIComponent(watchlist.id)}`}
+                      className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg hover:bg-slate-800 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Eye className="w-4 h-4 text-blue-400" />
+                        <div>
+                          <p className="text-sm text-slate-200">{watchlist.name}</p>
+                          <p className="text-xs text-slate-500">{watchlist.pages_count} pages</p>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-slate-500" />
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-6 text-center text-slate-500">
+                  <Eye className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No watchlists created yet</p>
+                  <Link
+                    href="/watchlists"
+                    className="text-blue-400 hover:text-blue-300 text-sm mt-2 inline-block"
+                  >
+                    Create your first watchlist
+                  </Link>
+                </div>
+              )}
+            </CardBody>
+          </Card>
+        </div>
+
         {/* Info Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
           <Card>
@@ -239,7 +380,20 @@ export default function DashboardPage() {
                   <Store className="w-4 h-4" />
                   <span>Browse all pages</span>
                 </Link>
-                {/* TODO: Add more quick actions as features are implemented */}
+                <Link
+                  href="/watchlists"
+                  className="flex items-center gap-2 text-slate-400 hover:text-slate-200 transition-colors"
+                >
+                  <Eye className="w-4 h-4" />
+                  <span>Manage watchlists</span>
+                </Link>
+                <Link
+                  href="/monitoring"
+                  className="flex items-center gap-2 text-slate-400 hover:text-slate-200 transition-colors"
+                >
+                  <Activity className="w-4 h-4" />
+                  <span>System monitoring</span>
+                </Link>
               </div>
             </CardBody>
           </Card>

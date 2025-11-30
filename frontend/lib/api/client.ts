@@ -20,6 +20,20 @@ import {
   ProductInsightsEntry,
   AlertListResponse,
   ApiError,
+  // Watchlist Types (Sprint 8.1)
+  WatchlistResponse,
+  WatchlistListResponse,
+  WatchlistWithDetails,
+  WatchlistSummaryListResponse,
+  WatchlistCreateRequest,
+  WatchlistItemResponse,
+  RescoreWatchlistResponse,
+  PageWatchlistsResponse,
+  // Monitoring Types (Sprint 8.1)
+  MonitoringSummary,
+  AdminPageListResponse,
+  AdminKeywordListResponse,
+  AdminScanListResponse,
 } from "@/lib/types/api";
 
 // =============================================================================
@@ -298,4 +312,182 @@ export async function getDashboardStats(): Promise<{
       lastSnapshotDate: null,
     };
   }
+}
+
+// =============================================================================
+// Watchlist API Functions (Sprint 8.1)
+// =============================================================================
+
+/**
+ * Get list of watchlists with page counts.
+ * Uses GET /watchlists/summary endpoint.
+ */
+export async function getWatchlists(
+  limit: number = 50,
+  offset: number = 0
+): Promise<WatchlistSummaryListResponse> {
+  const query = buildQueryString({ limit, offset });
+  return apiFetch<WatchlistSummaryListResponse>(`/watchlists/summary${query}`);
+}
+
+/**
+ * Get a single watchlist by ID.
+ * Uses GET /watchlists/{id} endpoint.
+ */
+export async function getWatchlist(watchlistId: string): Promise<WatchlistResponse> {
+  return apiFetch<WatchlistResponse>(`/watchlists/${encodeURIComponent(watchlistId)}`);
+}
+
+/**
+ * Get a watchlist with full page details.
+ * Uses GET /watchlists/{id}/details endpoint.
+ */
+export async function getWatchlistWithDetails(
+  watchlistId: string
+): Promise<WatchlistWithDetails> {
+  return apiFetch<WatchlistWithDetails>(
+    `/watchlists/${encodeURIComponent(watchlistId)}/details`
+  );
+}
+
+/**
+ * Create a new watchlist.
+ * Uses POST /watchlists endpoint.
+ */
+export async function createWatchlist(
+  data: WatchlistCreateRequest
+): Promise<WatchlistResponse> {
+  return apiFetch<WatchlistResponse>("/watchlists", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Add a page to a watchlist.
+ * Uses POST /watchlists/{id}/items endpoint.
+ */
+export async function addPageToWatchlist(
+  watchlistId: string,
+  pageId: string
+): Promise<WatchlistItemResponse> {
+  return apiFetch<WatchlistItemResponse>(
+    `/watchlists/${encodeURIComponent(watchlistId)}/items`,
+    {
+      method: "POST",
+      body: JSON.stringify({ page_id: pageId }),
+    }
+  );
+}
+
+/**
+ * Remove a page from a watchlist.
+ * Uses DELETE /watchlists/{id}/items/{page_id} endpoint.
+ */
+export async function removePageFromWatchlist(
+  watchlistId: string,
+  pageId: string
+): Promise<void> {
+  await fetch(
+    `${API_BASE_URL}/watchlists/${encodeURIComponent(
+      watchlistId
+    )}/items/${encodeURIComponent(pageId)}`,
+    { method: "DELETE" }
+  );
+}
+
+/**
+ * Trigger rescore for all pages in a watchlist.
+ * Uses POST /watchlists/{id}/scan_now endpoint.
+ */
+export async function rescoreWatchlist(
+  watchlistId: string
+): Promise<RescoreWatchlistResponse> {
+  return apiFetch<RescoreWatchlistResponse>(
+    `/watchlists/${encodeURIComponent(watchlistId)}/scan_now`,
+    { method: "POST" }
+  );
+}
+
+/**
+ * Get watchlists that contain a specific page.
+ * Uses GET /watchlists/by-page/{page_id} endpoint.
+ */
+export async function getPageWatchlists(
+  pageId: string
+): Promise<PageWatchlistsResponse> {
+  return apiFetch<PageWatchlistsResponse>(
+    `/watchlists/by-page/${encodeURIComponent(pageId)}`
+  );
+}
+
+// =============================================================================
+// Monitoring API Functions (Sprint 8.1)
+// =============================================================================
+
+/**
+ * Get system monitoring summary.
+ * Uses GET /admin/monitoring/summary endpoint.
+ */
+export async function getMonitoringSummary(): Promise<MonitoringSummary> {
+  return apiFetch<MonitoringSummary>("/admin/monitoring/summary");
+}
+
+/**
+ * Get list of active pages for admin monitoring.
+ * Uses GET /admin/pages/active endpoint.
+ */
+export async function getAdminPages(params: {
+  country?: string;
+  is_shopify?: boolean;
+  min_ads?: number;
+  max_ads?: number;
+  state?: string;
+  offset?: number;
+  limit?: number;
+}): Promise<AdminPageListResponse> {
+  const query = buildQueryString(params);
+  return apiFetch<AdminPageListResponse>(`/admin/pages/active${query}`);
+}
+
+/**
+ * Get recent keyword runs for admin monitoring.
+ * Uses GET /admin/keywords/recent endpoint.
+ */
+export async function getAdminKeywords(
+  limit: number = 50
+): Promise<AdminKeywordListResponse> {
+  const query = buildQueryString({ limit });
+  return apiFetch<AdminKeywordListResponse>(`/admin/keywords/recent${query}`);
+}
+
+/**
+ * Get scans for admin monitoring.
+ * Uses GET /admin/scans endpoint.
+ */
+export async function getAdminScans(params: {
+  status?: string;
+  since?: string;
+  page_id?: string;
+  offset?: number;
+  limit?: number;
+}): Promise<AdminScanListResponse> {
+  const query = buildQueryString(params);
+  return apiFetch<AdminScanListResponse>(`/admin/scans${query}`);
+}
+
+/**
+ * Trigger daily metrics snapshot.
+ * Uses POST /admin/metrics/daily-snapshot endpoint.
+ */
+export async function triggerDailySnapshot(
+  snapshotDate?: string
+): Promise<{ status: string; task_id: string; snapshot_date: string }> {
+  return apiFetch<{ status: string; task_id: string; snapshot_date: string }>(
+    "/admin/metrics/daily-snapshot",
+    {
+      method: "POST",
+      body: JSON.stringify({ snapshot_date: snapshotDate }),
+    }
+  );
 }

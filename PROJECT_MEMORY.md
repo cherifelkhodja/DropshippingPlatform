@@ -1,7 +1,7 @@
 # PROJECT MEMORY — Dropshipping Platform
 
 > **Purpose**: Persistent memory file for AI assistants working on this project.
-> **Last Updated**: v0.8.0 (Sprint 8 — Dashboard Frontend v0.1.0)
+> **Last Updated**: v0.8.1 (Sprint 8.1 — Dashboard++ Watchlists, Alerts, Monitoring)
 > **Maintainer**: Claude Code / Tech Lead
 
 ---
@@ -11,9 +11,9 @@
 | Key | Value |
 |-----|-------|
 | **Project Name** | Dropshipping Platform |
-| **Current Version** | v0.8.0 (Backend v0.7.0 + Dashboard v0.1.0) |
-| **Current Sprint** | Sprint 8 — Dashboard Frontend (completed) |
-| **Last Action** | Next.js dashboard with pages, metrics, product insights |
+| **Current Version** | v0.8.1 (Backend v0.7.1 + Dashboard v0.2.0) |
+| **Current Sprint** | Sprint 8.1 — Dashboard++ (completed) |
+| **Last Action** | Watchlists UI, Alerts UI, Monitoring dashboard, page detail integration |
 | **Architecture** | Hexagonal (Ports & Adapters) + React Frontend |
 | **Python Version** | 3.11+ |
 | **Node Version** | 18+ (frontend) |
@@ -681,9 +681,16 @@ frontend/
 │   ├── layout.tsx            # Root layout with sidebar
 │   ├── page.tsx              # Dashboard (/)
 │   ├── globals.css           # Tailwind + custom styles
-│   └── pages/
-│       ├── page.tsx          # Pages list (/pages)
-│       └── [pageId]/page.tsx # Page detail (/pages/:id)
+│   ├── pages/
+│   │   ├── page.tsx          # Pages list (/pages)
+│   │   └── [pageId]/page.tsx # Page detail (/pages/:id)
+│   ├── watchlists/           # Sprint 8.1
+│   │   ├── page.tsx          # Watchlists list (/watchlists)
+│   │   └── [id]/page.tsx     # Watchlist detail (/watchlists/:id)
+│   ├── alerts/
+│   │   └── page.tsx          # Alerts feed (/alerts)
+│   └── monitoring/
+│       └── page.tsx          # System monitoring (/monitoring)
 ├── components/
 │   ├── ui/                   # Card, Badge, Table, KpiTile, Button, Input, Select
 │   ├── layout/               # Sidebar, Header, Layout
@@ -691,7 +698,7 @@ frontend/
 ├── lib/
 │   ├── api/client.ts         # Typed fetch functions
 │   └── types/api.ts          # TypeScript types (mirrors Pydantic)
-└── __tests__/                # Component tests
+└── __tests__/                # Component + page tests
 ```
 
 #### Pages Implemented
@@ -738,12 +745,94 @@ frontend/
 - `frontend/README.md`: Setup guide, routes, components
 
 #### TODOs for Future Sprints
-- Real-time alerts feed page
-- Watchlist management UI
 - Ads gallery/preview section
-- Backend endpoint for aggregated dashboard stats
 - Search across all pages
 - Data export (CSV/Excel)
+
+
+### Sprint 8.1 — Dashboard++ Watchlists, Alerts, Monitoring (COMPLETED → v0.8.1)
+
+Sprint 8.1 surfaces three existing backend modules through the frontend UI:
+- **Watchlists** (from Sprint 5) - Track and manage shops
+- **Alerts Engine** (from Sprint 5) - View alerts globally and per page
+- **Monitoring** (from Sprints 2.1/5/7) - System health dashboard
+
+#### Backend Enhancements
+
+**New Use Cases** (`core/usecases/`):
+- `watchlist_details.py`:
+  - `GetWatchlistWithDetailsUseCase`: Fetch watchlist with full page info (scores, tiers)
+  - `ListWatchlistsWithCountsUseCase`: List watchlists with page counts
+  - `GetPageWatchlistsUseCase`: Find which watchlists contain a page
+- `monitoring.py`:
+  - `GetMonitoringSummaryUseCase`: Aggregate system stats (pages, alerts, snapshots)
+
+**New API Endpoints**:
+- `GET /api/v1/watchlists/summary` - List watchlists with counts
+- `GET /api/v1/watchlists/{id}/details` - Watchlist with full page details
+- `GET /api/v1/watchlists/by-page/{page_id}` - Get watchlists containing a page
+- `GET /api/v1/admin/monitoring/summary` - System monitoring dashboard data
+
+**Schema Updates** (`api/schemas/admin.py`):
+- `MonitoringSummaryResponse`: total_pages, pages_with_scores, alerts_last_24h/7d, metrics_snapshots_count
+
+**DI Wiring** (`api/dependencies.py`):
+- Added factories for all new use cases
+- Type aliases for cleaner dependency injection
+
+#### Frontend Pages
+
+**Watchlists** (`app/watchlists/`):
+- `page.tsx` - List view with create modal, table, empty state
+- `[id]/page.tsx` - Detail view with page table, stats, rescore action
+
+**Alerts** (`app/alerts/page.tsx`):
+- Alert list with filtering by type and severity
+- Grouped by date with severity badges
+- Links to page detail
+
+**Monitoring** (`app/monitoring/page.tsx`):
+- KPI tiles: total pages, pages with scores, alerts 24h/7d
+- System status card: last snapshot, metrics count, score coverage
+- Admin actions: trigger daily snapshot
+- Recent keyword runs table
+- Recent scans table with status badges
+
+#### Page Detail Integration (`app/pages/[pageId]/page.tsx`)
+- Added "Watchlists & Alerts" section at bottom
+- Add-to-watchlist dropdown with all available watchlists
+- Recent alerts widget with severity indicators
+- Links to full alerts page
+
+#### Navigation Updates (`components/layout/Sidebar.tsx`)
+- Removed "Soon" badges from Watchlists and Alerts links
+- Added Monitoring link to secondary nav
+- Updated version display to v0.2.0
+
+#### Dashboard Updates (`app/page.tsx`)
+- Added alerts widget (recent global alerts)
+- Added watchlists widget (active watchlists)
+- Quick action links to new pages
+
+#### API Client (`lib/api/client.ts`)
+New functions:
+- `getWatchlists()`, `getWatchlist(id)`, `getWatchlistWithDetails(id)`
+- `createWatchlist()`, `addPageToWatchlist()`, `removePageFromWatchlist()`
+- `rescoreWatchlist()`, `getPageWatchlists()`
+- `getMonitoringSummary()`, `getAdminPages()`, `getAdminKeywords()`
+- `getAdminScans()`, `triggerDailySnapshot()`
+
+#### TypeScript Types (`lib/types/api.ts`)
+- Watchlist types: `WatchlistResponse`, `WatchlistWithDetails`, `WatchlistSummary`, `WatchlistPageInfo`
+- Monitoring types: `MonitoringSummary`
+- Admin types: `AdminPageResponse`, `AdminKeywordRunResponse`, `AdminScanResponse`
+- Alert types: `AlertType`, `AlertSeverity`, `AlertResponse`
+
+#### Testing
+New test files:
+- `__tests__/app/watchlists.test.tsx` - Watchlist pages tests
+- `__tests__/app/alerts.test.tsx` - Alerts page tests
+- `__tests__/app/monitoring.test.tsx` - Monitoring page tests
 
 
 ## 7. IMPORTANT CONVENTIONS

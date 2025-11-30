@@ -10,6 +10,7 @@ import {
   Bell,
   Settings,
   BarChart3,
+  Activity,
 } from "lucide-react";
 
 interface NavItem {
@@ -34,17 +35,20 @@ const mainNavItems: NavItem[] = [
     label: "Watchlists",
     href: "/watchlists",
     icon: <Eye className="w-5 h-5" />,
-    badge: "Soon",
   },
   {
     label: "Alerts",
     href: "/alerts",
     icon: <Bell className="w-5 h-5" />,
-    badge: "Soon",
   },
 ];
 
 const secondaryNavItems: NavItem[] = [
+  {
+    label: "Monitoring",
+    href: "/monitoring",
+    icon: <Activity className="w-5 h-5" />,
+  },
   {
     label: "Analytics",
     href: "/analytics",
@@ -141,8 +145,8 @@ export function Sidebar() {
       {/* Footer */}
       <div className="p-4 border-t border-slate-800">
         <div className="px-3 py-2 rounded-lg bg-slate-800/50">
-          <p className="text-xs font-medium text-slate-400">Dashboard v0.1.0</p>
-          <p className="text-xs text-slate-500">Internal Dev Build</p>
+          <p className="text-xs font-medium text-slate-400">Dashboard v0.2.0</p>
+          <p className="text-xs text-slate-500">Sprint 8.1</p>
         </div>
       </div>
     </aside>

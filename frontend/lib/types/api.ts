@@ -262,3 +262,156 @@ export interface DashboardStats {
   tierABPages: number; // XXL + XL tiers
   lastSnapshotDate: string | null;
 }
+
+// =============================================================================
+// Watchlist Types (Sprint 5 + Sprint 8.1)
+// =============================================================================
+
+export interface WatchlistResponse {
+  id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  is_active: boolean;
+}
+
+export interface WatchlistListResponse {
+  items: WatchlistResponse[];
+  count: number;
+}
+
+export interface WatchlistItemResponse {
+  id: string;
+  watchlist_id: string;
+  page_id: string;
+  created_at: string;
+}
+
+export interface WatchlistItemListResponse {
+  items: WatchlistItemResponse[];
+  count: number;
+}
+
+export interface WatchlistCreateRequest {
+  name: string;
+  description?: string | null;
+}
+
+export interface WatchlistItemRequest {
+  page_id: string;
+}
+
+export interface RescoreWatchlistResponse {
+  watchlist_id: string;
+  tasks_dispatched: number;
+  message: string;
+}
+
+// Extended Watchlist Types (Sprint 8.1) - with page details
+export interface WatchlistPageInfo {
+  page_id: string;
+  page_name: string;
+  url: string;
+  country: string | null;
+  is_shopify: boolean;
+  shop_score: number;
+  tier: Tier;
+  active_ads_count: number;
+  added_at: string;
+}
+
+export interface WatchlistWithDetails {
+  id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  is_active: boolean;
+  pages_count: number;
+  pages: WatchlistPageInfo[];
+}
+
+export interface WatchlistSummary {
+  id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  is_active: boolean;
+  pages_count: number;
+}
+
+export interface WatchlistSummaryListResponse {
+  items: WatchlistSummary[];
+  count: number;
+}
+
+export interface PageWatchlistsResponse {
+  page_id: string;
+  watchlists: WatchlistResponse[];
+  count: number;
+}
+
+// =============================================================================
+// Monitoring Types (Sprint 8.1)
+// =============================================================================
+
+export interface MonitoringSummary {
+  total_pages: number;
+  pages_with_scores: number;
+  alerts_last_24h: number;
+  alerts_last_7d: number;
+  last_metrics_snapshot_date: string | null;
+  metrics_snapshots_count: number;
+  generated_at: string;
+}
+
+// =============================================================================
+// Admin Types (for Monitoring page)
+// =============================================================================
+
+export interface AdminPageResponse {
+  page_id: string;
+  page_name: string;
+  country: string | null;
+  is_shopify: boolean;
+  ads_count: number;
+  product_count: number;
+  state: string;
+  last_scan_at: string | null;
+}
+
+export interface AdminPageListResponse {
+  items: AdminPageResponse[];
+  total: number;
+  offset: number;
+  limit: number;
+}
+
+export interface AdminKeywordRunResponse {
+  keyword: string;
+  country: string;
+  created_at: string;
+  total_ads_found: number;
+  total_pages_found: number;
+  scan_id: string;
+}
+
+export interface AdminKeywordListResponse {
+  items: AdminKeywordRunResponse[];
+  total: number;
+}
+
+export interface AdminScanResponse {
+  id: string;
+  status: string;
+  started_at: string | null;
+  completed_at: string | null;
+  page_id: string | null;
+  result_summary: string | null;
+}
+
+export interface AdminScanListResponse {
+  items: AdminScanResponse[];
+  total: number;
+  offset: number;
+  limit: number;
+}
