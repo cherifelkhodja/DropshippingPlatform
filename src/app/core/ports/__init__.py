@@ -19,6 +19,7 @@ from .repository_port import (
     WatchlistRepository,
     AlertRepository,
     ProductRepository,
+    PageMetricsRepository,
 )
 from .task_dispatcher_port import TaskDispatcherPort
 from .logging_port import LoggingPort
@@ -39,6 +40,7 @@ __all__ = [
     "WatchlistRepository",
     "AlertRepository",
     "ProductRepository",
+    "PageMetricsRepository",
     # Product Extraction
     "ProductExtractorPort",
     "ProductExtractionResult",

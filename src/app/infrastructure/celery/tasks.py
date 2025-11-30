@@ -606,3 +606,95 @@ def rescore_all_watchlists_task(
             exc_info=True,
         )
         raise self.retry(exc=exc)
+
+
+@celery_app.task(
+    bind=True,
+    base=AsyncTask,
+    name="tasks.snapshot_daily_metrics",
+    max_retries=2,
+    default_retry_delay=300,
+)
+def snapshot_daily_metrics_task(
+    self: AsyncTask,
+    snapshot_date: str | None = None,
+) -> dict[str, Any]:
+    """Record daily metrics snapshot for all pages.
+
+    Creates a daily snapshot of key metrics (ads_count, shop_score, tier,
+    products_count) for all pages with existing scores. Used for:
+    - Evolution graphs (trends over time)
+    - Weak signal detection (early warning indicators)
+    - Historical analysis
+
+    This task is typically scheduled to run daily (e.g., at midnight UTC)
+    via Celery Beat.
+
+    Args:
+        snapshot_date: Optional date string (YYYY-MM-DD) for the snapshot.
+                       Defaults to today if not specified.
+
+    Returns:
+        Dict with snapshot results including pages_processed and snapshots_written.
+    """
+    from datetime import date as date_type, datetime
+
+    configure_logging(level="INFO")
+
+    logger.info(
+        "Starting daily metrics snapshot task",
+        extra={
+            "snapshot_date": snapshot_date,
+            "task_id": self.request.id,
+        },
+    )
+
+    async def _execute() -> dict[str, Any]:
+        container = get_container()
+        async with container.execution_context() as (db_session, _http_session):
+            use_case = await container.get_record_daily_metrics_use_case(
+                db_session=db_session,
+            )
+
+            # Parse date if provided, otherwise use today
+            target_date: date_type | None = None
+            if snapshot_date:
+                try:
+                    target_date = datetime.strptime(snapshot_date, "%Y-%m-%d").date()
+                except ValueError:
+                    logger.warning(
+                        "Invalid date format, using today",
+                        extra={"snapshot_date": snapshot_date},
+                    )
+                    target_date = None
+
+            result = await use_case.execute(snapshot_date=target_date)
+
+            return {
+                "status": "completed",
+                "snapshot_date": str(result.snapshot_date),
+                "pages_processed": result.pages_processed,
+                "snapshots_written": result.snapshots_written,
+                "errors_count": result.errors_count,
+            }
+
+    try:
+        result = self.run_async(_execute())
+        logger.info(
+            "Daily metrics snapshot completed",
+            extra={
+                "result": result,
+            },
+        )
+        return result
+
+    except Exception as exc:
+        logger.error(
+            "Daily metrics snapshot failed",
+            extra={
+                "snapshot_date": snapshot_date,
+                "error": str(exc),
+            },
+            exc_info=True,
+        )
+        raise self.retry(exc=exc)

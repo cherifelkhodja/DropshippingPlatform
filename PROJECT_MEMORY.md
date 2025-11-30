@@ -1,7 +1,7 @@
 # PROJECT MEMORY — Dropshipping Platform
 
 > **Purpose**: Persistent memory file for AI assistants working on this project.
-> **Last Updated**: v0.6.3 (Sprint 6 + Audit complete)
+> **Last Updated**: v0.7.0 (Sprint 7 — Historisation & Time Series)
 > **Maintainer**: Claude Code / Tech Lead
 
 ---
@@ -11,9 +11,9 @@
 | Key | Value |
 |-----|-------|
 | **Project Name** | Dropshipping Platform |
-| **Current Version** | v0.6.3 |
-| **Current Sprint** | Sprint 6.3 — Product Insights API + Audit (completed) |
-| **Last Action** | Product insights API, centralized config, migration 0006 |
+| **Current Version** | v0.7.0 |
+| **Current Sprint** | Sprint 7 — Historisation & Time Series (completed) |
+| **Last Action** | Daily metrics snapshots, metrics history API, Celery task |
 | **Architecture** | Hexagonal (Ports & Adapters) |
 | **Python Version** | 3.11+ |
 | **Package Manager** | uv (modern pyproject.toml) |
@@ -554,6 +554,75 @@ DropshippingPlatform/
   - Verified `rescore_all_watchlists_task` has per-watchlist error handling
 
 - **Integration Tests**: 145 tests collected and verified executable
+
+
+### Sprint 7 — Historisation & Time Series (COMPLETED → v0.7.0)
+
+Sprint 7 introduces daily metrics snapshots for time series analysis, enabling
+evolution graphs and weak signal detection.
+
+#### Domain Layer
+- **`PageDailyMetrics` entity** (`core/domain/entities/page_daily_metrics.py`):
+  - Captures daily snapshot of page metrics (ads_count, shop_score, tier, products_count)
+  - Uses centralized tiering logic from `core/domain/tiering.py`
+  - Factory method `create()` with automatic tier computation
+  - Helper methods: `is_high_performing()`, `is_low_performing()`, `has_active_ads()`
+- **`PageMetricsHistoryResult` value object**:
+  - Wraps list of metrics with pagination helpers
+  - Properties: `count`, `first_date`, `last_date`, `score_trend`, `ads_trend`
+
+#### Ports & Adapters
+- **`PageMetricsRepository` port** (`core/ports/repository_port.py`):
+  - `upsert_daily_metrics(metrics)`: Batch upsert with ON CONFLICT
+  - `list_page_metrics(page_id, date_from, date_to, limit)`: Query with filters
+- **`PostgresPageMetricsRepository`** (`adapters/outbound/repositories/`):
+  - Uses PostgreSQL INSERT ... ON CONFLICT DO UPDATE
+  - Results ordered by date ASC for time series visualization
+- **ORM Model**: `PageDailyMetricsModel` with `(page_id, date)` unique constraint
+- **Mapper**: `page_daily_metrics_mapper.py` (to_domain, to_model)
+
+#### Database
+- **Migration 0007**: Creates `page_daily_metrics` table
+  - Columns: id, page_id (FK), date, ads_count, shop_score, tier, products_count, created_at
+  - Unique constraint: `(page_id, date)` for one snapshot per day per page
+  - Indexes: `(page_id, date DESC)` for fast history queries
+
+#### Use Cases (`core/usecases/metrics.py`)
+- **`RecordDailyMetricsForAllPagesUseCase`**:
+  - Iterates all pages with scores, creates daily snapshots
+  - Gathers metrics: score from ScoringRepository, ads_count from Page, products from ProductRepository
+  - Batch upserts via PageMetricsRepository
+  - Returns summary: pages_processed, snapshots_written, errors_count
+- **`GetPageMetricsHistoryUseCase`**:
+  - Validates page exists
+  - Retrieves metrics history with date/limit filters
+  - Default limit: 90 days (max: 365)
+  - Returns `PageMetricsHistoryResult` ordered by date ASC
+
+#### Celery Task
+- **`snapshot_daily_metrics_task`** (`infrastructure/celery/tasks.py`):
+  - Dispatched via `RecordDailyMetricsForAllPagesUseCase`
+  - Accepts optional `snapshot_date` parameter (YYYY-MM-DD)
+  - Follows ADR-007 (AsyncTask pattern)
+  - Configurable for daily scheduling via Celery Beat
+
+#### API Endpoints
+- **`GET /api/v1/pages/{page_id}/metrics/history`** (`api/routers/pages.py`):
+  - Query params: `date_from`, `date_to`, `limit`
+  - Returns: `PageMetricsHistoryResponse` (page_id, metrics[])
+  - Each metric: date, ads_count, shop_score, tier, products_count
+- **`POST /api/v1/admin/metrics/daily-snapshot`** (`api/routers/admin.py`):
+  - Protected by X-Admin-Api-Key (ADR-006)
+  - Dispatches Celery task for snapshot
+  - Returns: task_id, status, snapshot_date
+
+#### Testing
+- **Unit tests** (`tests/usecases/test_metrics.py`):
+  - `RecordDailyMetricsForAllPagesUseCase`: 5 tests
+  - `GetPageMetricsHistoryUseCase`: 6 tests
+  - `PageDailyMetrics` entity: 5 tests
+  - `PageMetricsHistoryResult`: 3 tests
+- **Fake repository**: `FakePageMetricsRepository` in conftest.py
 
 
 ## 7. IMPORTANT CONVENTIONS

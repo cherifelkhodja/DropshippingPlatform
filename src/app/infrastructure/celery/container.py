@@ -37,12 +37,19 @@ from src.app.adapters.outbound.repositories.watchlist_repository import (
 from src.app.adapters.outbound.repositories.alert_repository import (
     PostgresAlertRepository,
 )
+from src.app.adapters.outbound.repositories.product_repository import (
+    PostgresProductRepository,
+)
+from src.app.adapters.outbound.repositories.page_metrics_repository import (
+    PostgresPageMetricsRepository,
+)
 from src.app.core.usecases.analyse_page_deep import AnalysePageDeepUseCase
 from src.app.core.usecases.analyse_website import AnalyseWebsiteUseCase
 from src.app.core.usecases.compute_shop_score import ComputeShopScoreUseCase
 from src.app.core.usecases.extract_product_count import ExtractProductCountUseCase
 from src.app.core.usecases.watchlists import RescoreWatchlistUseCase
 from src.app.core.usecases.detect_alerts_for_page import DetectAlertsForPageUseCase
+from src.app.core.usecases.metrics import RecordDailyMetricsForAllPagesUseCase
 from src.app.infrastructure.logging.logger_adapter import StandardLoggingAdapter
 from src.app.infrastructure.settings.runtime_settings import get_settings
 
@@ -328,6 +335,26 @@ class WorkerContainer:
         return DetectAlertsForPageUseCase(
             alert_repository=PostgresAlertRepository(db_session),
             logger=self._get_logger("detect_alerts"),
+        )
+
+    async def get_record_daily_metrics_use_case(
+        self,
+        db_session: AsyncSession,
+    ) -> RecordDailyMetricsForAllPagesUseCase:
+        """Create the RecordDailyMetricsForAllPages use case with all dependencies.
+
+        Args:
+            db_session: Database session for repositories.
+
+        Returns:
+            RecordDailyMetricsForAllPagesUseCase: Configured use case instance.
+        """
+        return RecordDailyMetricsForAllPagesUseCase(
+            page_repository=PostgresPageRepository(db_session),
+            scoring_repository=PostgresScoringRepository(db_session),
+            product_repository=PostgresProductRepository(db_session),
+            page_metrics_repository=PostgresPageMetricsRepository(db_session),
+            logger=self._get_logger("record_daily_metrics"),
         )
 
     @asynccontextmanager

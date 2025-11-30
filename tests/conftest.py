@@ -509,6 +509,52 @@ class FakeProductRepository:
         return len([p for p in self.products.values() if p.page_id == page_id])
 
 
+class FakePageMetricsRepository:
+    """Fake page metrics repository for testing."""
+
+    def __init__(self) -> None:
+        from datetime import date as date_type
+        from src.app.core.domain.entities.page_daily_metrics import PageDailyMetrics
+        # Store metrics by (page_id, date) -> PageDailyMetrics
+        self.metrics: dict[tuple[str, date_type], PageDailyMetrics] = {}
+        self.upsert_calls: list[Sequence[PageDailyMetrics]] = []
+
+    async def upsert_daily_metrics(
+        self, metrics: Sequence[Any]
+    ) -> None:
+        self.upsert_calls.append(list(metrics))
+        for metric in metrics:
+            key = (metric.page_id, metric.date)
+            self.metrics[key] = metric
+
+    async def list_page_metrics(
+        self,
+        page_id: str,
+        date_from: Any = None,
+        date_to: Any = None,
+        limit: int | None = None,
+    ) -> list[Any]:
+        """List metrics for a page, ordered by date ASC."""
+        page_metrics = [
+            m for m in self.metrics.values() if m.page_id == page_id
+        ]
+
+        # Apply date filters
+        if date_from is not None:
+            page_metrics = [m for m in page_metrics if m.date >= date_from]
+        if date_to is not None:
+            page_metrics = [m for m in page_metrics if m.date <= date_to]
+
+        # Sort by date ASC
+        page_metrics.sort(key=lambda m: m.date)
+
+        # Apply limit
+        if limit is not None:
+            page_metrics = page_metrics[:limit]
+
+        return page_metrics
+
+
 # =============================================================================
 # Port Fixtures
 # =============================================================================
@@ -616,3 +662,9 @@ def mock_product_extractor_port() -> AsyncMock:
         error=None,
     )
     return mock
+
+
+@pytest.fixture
+def fake_page_metrics_repo() -> FakePageMetricsRepository:
+    """Return a fake page metrics repository."""
+    return FakePageMetricsRepository()
