@@ -26,6 +26,12 @@ from .alert import (
     VALID_SEVERITIES,
 )
 from .product import Product
+from .product_insights import (
+    ProductInsights,
+    PageProductInsights,
+    AdMatch,
+    MatchStrength,
+)
 
 __all__ = [
     # Page
@@ -69,4 +75,9 @@ __all__ = [
     "VALID_SEVERITIES",
     # Product
     "Product",
+    # Product Insights (read-model)
+    "ProductInsights",
+    "PageProductInsights",
+    "AdMatch",
+    "MatchStrength",
 ]

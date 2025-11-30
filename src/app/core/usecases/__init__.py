@@ -54,6 +54,10 @@ from .sync_products_for_page import (
     SyncProductsForPageUseCase,
     SyncProductsResult,
 )
+from .build_product_insights import (
+    BuildProductInsightsForPageUseCase,
+    BuildProductInsightsResult,
+)
 
 __all__ = [
     # Search Ads
@@ -91,4 +95,7 @@ __all__ = [
     # Sync Products
     "SyncProductsForPageUseCase",
     "SyncProductsResult",
+    # Build Product Insights
+    "BuildProductInsightsForPageUseCase",
+    "BuildProductInsightsResult",
 ]
