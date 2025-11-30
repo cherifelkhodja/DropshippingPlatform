@@ -1,7 +1,7 @@
 # PROJECT MEMORY — Dropshipping Platform
 
 > **Purpose**: Persistent memory file for AI assistants working on this project.
-> **Last Updated**: v0.7.0 (Sprint 7 — Historisation & Time Series)
+> **Last Updated**: v0.8.0 (Sprint 8 — Dashboard Frontend v0.1.0)
 > **Maintainer**: Claude Code / Tech Lead
 
 ---
@@ -11,12 +11,13 @@
 | Key | Value |
 |-----|-------|
 | **Project Name** | Dropshipping Platform |
-| **Current Version** | v0.7.0 |
-| **Current Sprint** | Sprint 7 — Historisation & Time Series (completed) |
-| **Last Action** | Daily metrics snapshots, metrics history API, Celery task |
-| **Architecture** | Hexagonal (Ports & Adapters) |
+| **Current Version** | v0.8.0 (Backend v0.7.0 + Dashboard v0.1.0) |
+| **Current Sprint** | Sprint 8 — Dashboard Frontend (completed) |
+| **Last Action** | Next.js dashboard with pages, metrics, product insights |
+| **Architecture** | Hexagonal (Ports & Adapters) + React Frontend |
 | **Python Version** | 3.11+ |
-| **Package Manager** | uv (modern pyproject.toml) |
+| **Node Version** | 18+ (frontend) |
+| **Package Manager** | uv (backend), npm (frontend) |
 | **Coverage Threshold** | 60% (target: 85%) |
 
 ---
@@ -38,6 +39,25 @@ DropshippingPlatform/
 ├── .github/
 │   └── workflows/
 │       └── ci.yml               # GitHub Actions CI
+│
+├── frontend/                    # Dashboard Frontend (Sprint 8)
+│   ├── app/                     # Next.js App Router pages
+│   │   ├── layout.tsx           # Root layout with sidebar
+│   │   ├── page.tsx             # Dashboard (/)
+│   │   └── pages/
+│   │       ├── page.tsx         # Pages list (/pages)
+│   │       └── [pageId]/page.tsx # Page detail (/pages/:id)
+│   ├── components/
+│   │   ├── ui/                  # Reusable UI components
+│   │   ├── layout/              # Sidebar, Header, Layout
+│   │   └── charts/              # Score evolution charts
+│   ├── lib/
+│   │   ├── api/                 # Typed API client
+│   │   └── types/               # TypeScript types (mirrors Pydantic)
+│   ├── __tests__/               # Jest tests
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── tailwind.config.ts
 │
 ├── alembic/
 │   ├── env.py                   # Async migrations env
@@ -187,6 +207,7 @@ DropshippingPlatform/
 
 ### 2.3 Technology Stack
 
+#### Backend
 | Layer | Technology |
 |-------|------------|
 | **Web Framework** | FastAPI |
@@ -200,6 +221,18 @@ DropshippingPlatform/
 | **Container** | Docker multi-stage |
 | **CI/CD** | GitHub Actions |
 | **Package Manager** | uv |
+
+#### Frontend (Sprint 8+)
+| Layer | Technology |
+|-------|------------|
+| **Framework** | Next.js 14 (App Router) |
+| **UI Library** | React 18 |
+| **Language** | TypeScript 5.4+ |
+| **Styling** | TailwindCSS 3.4 |
+| **Charts** | Recharts |
+| **Icons** | Lucide React |
+| **Testing** | Jest + Testing Library |
+| **Package Manager** | npm |
 
 ---
 
@@ -623,6 +656,94 @@ evolution graphs and weak signal detection.
   - `PageDailyMetrics` entity: 5 tests
   - `PageMetricsHistoryResult`: 3 tests
 - **Fake repository**: `FakePageMetricsRepository` in conftest.py
+
+
+### Sprint 8 — Dashboard Frontend (COMPLETED → v0.8.0)
+
+Sprint 8 delivers a first version of the internal dashboard frontend using
+Next.js, React, TypeScript, and TailwindCSS.
+
+#### Technology Stack (Frontend)
+| Layer | Technology |
+|-------|------------|
+| **Framework** | Next.js 14 (App Router) |
+| **UI Library** | React 18 |
+| **Language** | TypeScript 5.4+ |
+| **Styling** | TailwindCSS 3.4 |
+| **Charts** | Recharts |
+| **Icons** | Lucide React |
+| **Testing** | Jest + Testing Library |
+
+#### Frontend Structure
+```
+frontend/
+├── app/                      # Next.js App Router
+│   ├── layout.tsx            # Root layout with sidebar
+│   ├── page.tsx              # Dashboard (/)
+│   ├── globals.css           # Tailwind + custom styles
+│   └── pages/
+│       ├── page.tsx          # Pages list (/pages)
+│       └── [pageId]/page.tsx # Page detail (/pages/:id)
+├── components/
+│   ├── ui/                   # Card, Badge, Table, KpiTile, Button, Input, Select
+│   ├── layout/               # Sidebar, Header, Layout
+│   └── charts/               # ScoreChart (line chart)
+├── lib/
+│   ├── api/client.ts         # Typed fetch functions
+│   └── types/api.ts          # TypeScript types (mirrors Pydantic)
+└── __tests__/                # Component tests
+```
+
+#### Pages Implemented
+1. **Dashboard** (`/`):
+   - KPI tiles: Total pages, Tier XXL count, Tier XL count, Last snapshot
+   - Top 20 pages table with tier badges
+   - Tier reference card
+
+2. **Pages List** (`/pages`):
+   - Filterable/paginated table of all pages
+   - Filters: Search, Tier, Country
+   - Links to page details
+
+3. **Page Detail** (`/pages/[pageId]`):
+   - Page info header with score components
+   - Score evolution chart (Recharts line chart)
+   - Recent metrics history table
+   - Product insights summary and table
+
+#### API Client Layer (`lib/api/client.ts`)
+- `getTopPages(limit, offset)` → `/pages/top`
+- `getRankedPages(filters)` → `/pages/ranked`
+- `getPageDetails(pageId)` → `/pages/{page_id}`
+- `getPageScore(pageId)` → `/pages/{page_id}/score`
+- `getPageMetricsHistory(pageId, params)` → `/pages/{page_id}/metrics/history`
+- `getPageProductInsights(pageId, params)` → `/pages/{page_id}/products/insights`
+- `getPageAlerts(pageId)` → `/alerts/{page_id}`
+- `getRecentAlerts(limit)` → `/alerts`
+
+#### UI Components
+- **TierBadge**: Color-coded tier display (XXL=green → XS=gray)
+- **MatchBadge**: Product-ad match strength indicator
+- **Table**: Generic data table with pagination support
+- **KpiTile**: Large metric display card
+- **Card**: Content container with header/body
+- **ScoreChart**: Time series line chart (score + ads)
+
+#### Testing
+- Jest configuration with Next.js support
+- Component tests for Badge and Table
+- Mock setup for Next.js navigation
+
+#### Documentation
+- `frontend/README.md`: Setup guide, routes, components
+
+#### TODOs for Future Sprints
+- Real-time alerts feed page
+- Watchlist management UI
+- Ads gallery/preview section
+- Backend endpoint for aggregated dashboard stats
+- Search across all pages
+- Data export (CSV/Excel)
 
 
 ## 7. IMPORTANT CONVENTIONS
