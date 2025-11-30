@@ -166,10 +166,14 @@ class CreativeAnalysis:
         return any(t.lower() == tag_lower for t in self.all_tags)
 
     def get_quality_tier(self) -> str:
-        """Get a quality tier based on creative score.
+        """Get a creative quality tier based on creative score.
+
+        Note: This is distinct from the shop score tiers (XXL/XL/L/M/S/XS)
+        defined in core/domain/tiering.py. Creative quality tiers assess
+        ad creative text quality, while shop tiers assess overall shop performance.
 
         Returns:
-            Quality tier: "excellent", "good", "average", or "poor".
+            Creative quality tier: "excellent", "good", "average", or "poor".
         """
         if self.creative_score >= 80:
             return "excellent"
@@ -276,10 +280,20 @@ class PageCreativeInsights:
 
     @property
     def quality_tier(self) -> str:
-        """Get overall quality tier based on average score.
+        """Get overall creative quality tier based on average score.
+
+        Note: This is distinct from the shop score tiers (XXL/XL/L/M/S/XS)
+        defined in core/domain/tiering.py. Creative quality tiers assess
+        ad creative text quality, while shop tiers assess overall shop performance.
+
+        Thresholds:
+            - excellent: avg_score >= 80
+            - good: avg_score >= 60
+            - average: avg_score >= 40
+            - poor: avg_score < 40
 
         Returns:
-            Quality tier: "excellent", "good", "average", or "poor".
+            Creative quality tier: "excellent", "good", "average", or "poor".
         """
         if self.avg_score >= 80:
             return "excellent"

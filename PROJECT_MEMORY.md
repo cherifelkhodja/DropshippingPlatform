@@ -955,6 +955,74 @@ This feature analyzes ad creative text to score quality, extract tags, and deter
 - Analysis is idempotent per ad (cached in database)
 - Quality tier thresholds are configurable in domain layer
 
+#### Creative Quality Tier vs Shop Score Tier
+Sprint 9 introduces a **Creative Quality Tier** system for ad creatives that is **distinct** from the Shop Score tiers:
+
+| Tier System | Values | Based On | Module |
+|-------------|--------|----------|--------|
+| **Creative Quality Tier** | excellent / good / average / poor | Creative score (0-100) from ad text analysis | `creative_analysis.py` |
+| **Shop Score Tier** | XXL / XL / L / M / S / XS | Shop score (0-100) from overall shop performance | `tiering.py` |
+
+Creative Quality Tier thresholds:
+- **excellent**: avg_score ≥ 80
+- **good**: avg_score ≥ 60
+- **average**: avg_score ≥ 40
+- **poor**: avg_score < 40
+
+API endpoints for creative insights:
+- `GET /pages/{page_id}/creatives/insights` — Page-level aggregated insights
+- `GET /ads/{ad_id}/analysis` — Single ad analysis
+- `POST /admin/pages/{page_id}/creatives/analyze` — Trigger analysis (admin)
+
+
+---
+
+## 6. LOCAL DEVELOPMENT
+
+### Local Run (Docker + Frontend)
+
+1. **Copy environment file** and adjust if needed:
+   ```bash
+   cp .env.example .env
+   # Edit .env if needed (DB, Meta Ads, SECURITY_ADMIN_API_KEY, etc.)
+   ```
+
+2. **Start backend stack** (PostgreSQL + Redis + App + Worker):
+   ```bash
+   make dev
+   # Equivalent to: docker compose up -d && alembic upgrade head
+   ```
+
+3. **Start frontend** (in a separate terminal):
+   ```bash
+   cd frontend
+   cp .env.example .env.local
+   npm install
+   npm run dev
+   ```
+
+4. **Access the application**:
+   - Backend API: http://localhost:8000/api/v1
+   - API Documentation: http://localhost:8000/docs
+   - Dashboard: http://localhost:3000
+
+5. **Stop all services**:
+   ```bash
+   docker compose down
+   ```
+
+### Useful Commands
+
+| Command | Description |
+|---------|-------------|
+| `make dev` | Start all backend services |
+| `make logs` | View container logs |
+| `make shell` | Open bash in app container |
+| `make test` | Run backend tests |
+| `make lint` | Run linters |
+| `alembic upgrade head` | Apply DB migrations |
+| `alembic revision --autogenerate -m "desc"` | Create new migration |
+
 
 ## 7. IMPORTANT CONVENTIONS
 

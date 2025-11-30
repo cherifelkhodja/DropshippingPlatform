@@ -16,8 +16,11 @@ Tags are extracted based on keyword/pattern detection.
 Sentiment is determined via positive/negative lexicon analysis.
 """
 
+import logging
 import re
 from typing import cast
+
+logger = logging.getLogger(__name__)
 
 from src.app.core.domain.entities.creative_analysis import (
     CreativeTextAnalysisResult,
@@ -196,6 +199,18 @@ class HeuristicCreativeTextAnalyzer:
 
         # Determine sentiment
         sentiment = self._analyze_sentiment(text_lower)
+
+        # Log analysis result for debugging
+        logger.debug(
+            "Creative text analyzed: score=%.1f, style_tags=%d, angle_tags=%d, "
+            "tone_tags=%d, sentiment=%s, text_length=%d",
+            total_score,
+            len(style_tags),
+            len(angle_tags),
+            len(tone_tags),
+            sentiment,
+            text_len,
+        )
 
         return CreativeTextAnalysisResult(
             creative_score=round(total_score, 1),
