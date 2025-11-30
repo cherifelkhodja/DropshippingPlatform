@@ -1,7 +1,7 @@
 # PROJECT MEMORY — Dropshipping Platform
 
 > **Purpose**: Persistent memory file for AI assistants working on this project.
-> **Last Updated**: v0.7.0 (Sprint 7 — Historisation & Time Series)
+> **Last Updated**: v0.8.1 (Sprint 8.1 — Dashboard++ Watchlists, Alerts, Monitoring)
 > **Maintainer**: Claude Code / Tech Lead
 
 ---
@@ -11,12 +11,13 @@
 | Key | Value |
 |-----|-------|
 | **Project Name** | Dropshipping Platform |
-| **Current Version** | v0.7.0 |
-| **Current Sprint** | Sprint 7 — Historisation & Time Series (completed) |
-| **Last Action** | Daily metrics snapshots, metrics history API, Celery task |
-| **Architecture** | Hexagonal (Ports & Adapters) |
+| **Current Version** | v0.8.1 (Backend v0.7.1 + Dashboard v0.2.0) |
+| **Current Sprint** | Sprint 8.1 — Dashboard++ (completed) |
+| **Last Action** | Watchlists UI, Alerts UI, Monitoring dashboard, page detail integration |
+| **Architecture** | Hexagonal (Ports & Adapters) + React Frontend |
 | **Python Version** | 3.11+ |
-| **Package Manager** | uv (modern pyproject.toml) |
+| **Node Version** | 18+ (frontend) |
+| **Package Manager** | uv (backend), npm (frontend) |
 | **Coverage Threshold** | 60% (target: 85%) |
 
 ---
@@ -38,6 +39,25 @@ DropshippingPlatform/
 ├── .github/
 │   └── workflows/
 │       └── ci.yml               # GitHub Actions CI
+│
+├── frontend/                    # Dashboard Frontend (Sprint 8)
+│   ├── app/                     # Next.js App Router pages
+│   │   ├── layout.tsx           # Root layout with sidebar
+│   │   ├── page.tsx             # Dashboard (/)
+│   │   └── pages/
+│   │       ├── page.tsx         # Pages list (/pages)
+│   │       └── [pageId]/page.tsx # Page detail (/pages/:id)
+│   ├── components/
+│   │   ├── ui/                  # Reusable UI components
+│   │   ├── layout/              # Sidebar, Header, Layout
+│   │   └── charts/              # Score evolution charts
+│   ├── lib/
+│   │   ├── api/                 # Typed API client
+│   │   └── types/               # TypeScript types (mirrors Pydantic)
+│   ├── __tests__/               # Jest tests
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── tailwind.config.ts
 │
 ├── alembic/
 │   ├── env.py                   # Async migrations env
@@ -187,6 +207,7 @@ DropshippingPlatform/
 
 ### 2.3 Technology Stack
 
+#### Backend
 | Layer | Technology |
 |-------|------------|
 | **Web Framework** | FastAPI |
@@ -200,6 +221,18 @@ DropshippingPlatform/
 | **Container** | Docker multi-stage |
 | **CI/CD** | GitHub Actions |
 | **Package Manager** | uv |
+
+#### Frontend (Sprint 8+)
+| Layer | Technology |
+|-------|------------|
+| **Framework** | Next.js 14 (App Router) |
+| **UI Library** | React 18 |
+| **Language** | TypeScript 5.4+ |
+| **Styling** | TailwindCSS 3.4 |
+| **Charts** | Recharts |
+| **Icons** | Lucide React |
+| **Testing** | Jest + Testing Library |
+| **Package Manager** | npm |
 
 ---
 
@@ -623,6 +656,183 @@ evolution graphs and weak signal detection.
   - `PageDailyMetrics` entity: 5 tests
   - `PageMetricsHistoryResult`: 3 tests
 - **Fake repository**: `FakePageMetricsRepository` in conftest.py
+
+
+### Sprint 8 — Dashboard Frontend (COMPLETED → v0.8.0)
+
+Sprint 8 delivers a first version of the internal dashboard frontend using
+Next.js, React, TypeScript, and TailwindCSS.
+
+#### Technology Stack (Frontend)
+| Layer | Technology |
+|-------|------------|
+| **Framework** | Next.js 14 (App Router) |
+| **UI Library** | React 18 |
+| **Language** | TypeScript 5.4+ |
+| **Styling** | TailwindCSS 3.4 |
+| **Charts** | Recharts |
+| **Icons** | Lucide React |
+| **Testing** | Jest + Testing Library |
+
+#### Frontend Structure
+```
+frontend/
+├── app/                      # Next.js App Router
+│   ├── layout.tsx            # Root layout with sidebar
+│   ├── page.tsx              # Dashboard (/)
+│   ├── globals.css           # Tailwind + custom styles
+│   ├── pages/
+│   │   ├── page.tsx          # Pages list (/pages)
+│   │   └── [pageId]/page.tsx # Page detail (/pages/:id)
+│   ├── watchlists/           # Sprint 8.1
+│   │   ├── page.tsx          # Watchlists list (/watchlists)
+│   │   └── [id]/page.tsx     # Watchlist detail (/watchlists/:id)
+│   ├── alerts/
+│   │   └── page.tsx          # Alerts feed (/alerts)
+│   └── monitoring/
+│       └── page.tsx          # System monitoring (/monitoring)
+├── components/
+│   ├── ui/                   # Card, Badge, Table, KpiTile, Button, Input, Select
+│   ├── layout/               # Sidebar, Header, Layout
+│   └── charts/               # ScoreChart (line chart)
+├── lib/
+│   ├── api/client.ts         # Typed fetch functions
+│   └── types/api.ts          # TypeScript types (mirrors Pydantic)
+└── __tests__/                # Component + page tests
+```
+
+#### Pages Implemented
+1. **Dashboard** (`/`):
+   - KPI tiles: Total pages, Tier XXL count, Tier XL count, Last snapshot
+   - Top 20 pages table with tier badges
+   - Tier reference card
+
+2. **Pages List** (`/pages`):
+   - Filterable/paginated table of all pages
+   - Filters: Search, Tier, Country
+   - Links to page details
+
+3. **Page Detail** (`/pages/[pageId]`):
+   - Page info header with score components
+   - Score evolution chart (Recharts line chart)
+   - Recent metrics history table
+   - Product insights summary and table
+
+#### API Client Layer (`lib/api/client.ts`)
+- `getTopPages(limit, offset)` → `/pages/top`
+- `getRankedPages(filters)` → `/pages/ranked`
+- `getPageDetails(pageId)` → `/pages/{page_id}`
+- `getPageScore(pageId)` → `/pages/{page_id}/score`
+- `getPageMetricsHistory(pageId, params)` → `/pages/{page_id}/metrics/history`
+- `getPageProductInsights(pageId, params)` → `/pages/{page_id}/products/insights`
+- `getPageAlerts(pageId)` → `/alerts/{page_id}`
+- `getRecentAlerts(limit)` → `/alerts`
+
+#### UI Components
+- **TierBadge**: Color-coded tier display (XXL=green → XS=gray)
+- **MatchBadge**: Product-ad match strength indicator
+- **Table**: Generic data table with pagination support
+- **KpiTile**: Large metric display card
+- **Card**: Content container with header/body
+- **ScoreChart**: Time series line chart (score + ads)
+
+#### Testing
+- Jest configuration with Next.js support
+- Component tests for Badge and Table
+- Mock setup for Next.js navigation
+
+#### Documentation
+- `frontend/README.md`: Setup guide, routes, components
+
+#### TODOs for Future Sprints
+- Ads gallery/preview section
+- Search across all pages
+- Data export (CSV/Excel)
+
+
+### Sprint 8.1 — Dashboard++ Watchlists, Alerts, Monitoring (COMPLETED → v0.8.1)
+
+Sprint 8.1 surfaces three existing backend modules through the frontend UI:
+- **Watchlists** (from Sprint 5) - Track and manage shops
+- **Alerts Engine** (from Sprint 5) - View alerts globally and per page
+- **Monitoring** (from Sprints 2.1/5/7) - System health dashboard
+
+#### Backend Enhancements
+
+**New Use Cases** (`core/usecases/`):
+- `watchlist_details.py`:
+  - `GetWatchlistWithDetailsUseCase`: Fetch watchlist with full page info (scores, tiers)
+  - `ListWatchlistsWithCountsUseCase`: List watchlists with page counts
+  - `GetPageWatchlistsUseCase`: Find which watchlists contain a page
+- `monitoring.py`:
+  - `GetMonitoringSummaryUseCase`: Aggregate system stats (pages, alerts, snapshots)
+
+**New API Endpoints**:
+- `GET /api/v1/watchlists/summary` - List watchlists with counts
+- `GET /api/v1/watchlists/{id}/details` - Watchlist with full page details
+- `GET /api/v1/watchlists/by-page/{page_id}` - Get watchlists containing a page
+- `GET /api/v1/admin/monitoring/summary` - System monitoring dashboard data
+
+**Schema Updates** (`api/schemas/admin.py`):
+- `MonitoringSummaryResponse`: total_pages, pages_with_scores, alerts_last_24h/7d, metrics_snapshots_count
+
+**DI Wiring** (`api/dependencies.py`):
+- Added factories for all new use cases
+- Type aliases for cleaner dependency injection
+
+#### Frontend Pages
+
+**Watchlists** (`app/watchlists/`):
+- `page.tsx` - List view with create modal, table, empty state
+- `[id]/page.tsx` - Detail view with page table, stats, rescore action
+
+**Alerts** (`app/alerts/page.tsx`):
+- Alert list with filtering by type and severity
+- Grouped by date with severity badges
+- Links to page detail
+
+**Monitoring** (`app/monitoring/page.tsx`):
+- KPI tiles: total pages, pages with scores, alerts 24h/7d
+- System status card: last snapshot, metrics count, score coverage
+- Admin actions: trigger daily snapshot
+- Recent keyword runs table
+- Recent scans table with status badges
+
+#### Page Detail Integration (`app/pages/[pageId]/page.tsx`)
+- Added "Watchlists & Alerts" section at bottom
+- Add-to-watchlist dropdown with all available watchlists
+- Recent alerts widget with severity indicators
+- Links to full alerts page
+
+#### Navigation Updates (`components/layout/Sidebar.tsx`)
+- Removed "Soon" badges from Watchlists and Alerts links
+- Added Monitoring link to secondary nav
+- Updated version display to v0.2.0
+
+#### Dashboard Updates (`app/page.tsx`)
+- Added alerts widget (recent global alerts)
+- Added watchlists widget (active watchlists)
+- Quick action links to new pages
+
+#### API Client (`lib/api/client.ts`)
+New functions:
+- `getWatchlists()`, `getWatchlist(id)`, `getWatchlistWithDetails(id)`
+- `createWatchlist()`, `addPageToWatchlist()`, `removePageFromWatchlist()`
+- `rescoreWatchlist()`, `getPageWatchlists()`
+- `getMonitoringSummary()`, `getAdminPages()`, `getAdminKeywords()`
+- `getAdminScans()`, `triggerDailySnapshot()`
+
+#### TypeScript Types (`lib/types/api.ts`)
+- Watchlist types: `WatchlistResponse`, `WatchlistWithDetails`, `WatchlistSummary`, `WatchlistPageInfo`
+- Monitoring types: `MonitoringSummary`
+- Admin types: `AdminPageResponse`, `AdminKeywordRunResponse`, `AdminScanResponse`
+- Alert types: `AlertType`, `AlertSeverity`, `AlertResponse`
+
+#### Testing
+New test files:
+- `__tests__/app/watchlists.test.tsx` - Watchlist pages tests
+- `__tests__/app/alerts.test.tsx` - Alerts page tests
+- `__tests__/app/monitoring.test.tsx` - Monitoring page tests
 
 
 ## 7. IMPORTANT CONVENTIONS

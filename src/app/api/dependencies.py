@@ -86,6 +86,12 @@ from src.app.core.usecases.watchlists import (
     ListWatchlistItemsUseCase,
     RescoreWatchlistUseCase,
 )
+from src.app.core.usecases.watchlist_details import (
+    GetWatchlistWithDetailsUseCase,
+    ListWatchlistsWithCountsUseCase,
+    GetPageWatchlistsUseCase,
+)
+from src.app.core.usecases.monitoring import GetMonitoringSummaryUseCase
 from src.app.infrastructure.celery.celery_app import celery_app
 from src.app.infrastructure.db.database import Database, DatabaseConfig
 from src.app.infrastructure.logging.logger_adapter import StandardLoggingAdapter
@@ -682,4 +688,84 @@ def get_page_metrics_history_use_case(
 GetPageMetricsHistoryUC = Annotated[
     GetPageMetricsHistoryUseCase,
     Depends(get_page_metrics_history_use_case),
+]
+
+
+# =============================================================================
+# Extended Watchlist Use Cases (Sprint 8.1)
+# =============================================================================
+
+
+def get_watchlist_with_details_use_case(
+    watchlist_repo: WatchlistRepo,
+    page_repo: PageRepo,
+    scoring_repo: ScoringRepo,
+) -> GetWatchlistWithDetailsUseCase:
+    """Get GetWatchlistWithDetails use case."""
+    return GetWatchlistWithDetailsUseCase(
+        watchlist_repository=watchlist_repo,
+        page_repository=page_repo,
+        scoring_repository=scoring_repo,
+        logger=get_logger("usecase.get_watchlist_details"),
+    )
+
+
+def get_list_watchlists_with_counts_use_case(
+    watchlist_repo: WatchlistRepo,
+) -> ListWatchlistsWithCountsUseCase:
+    """Get ListWatchlistsWithCounts use case."""
+    return ListWatchlistsWithCountsUseCase(
+        watchlist_repository=watchlist_repo,
+        logger=get_logger("usecase.list_watchlists_counts"),
+    )
+
+
+def get_page_watchlists_use_case(
+    watchlist_repo: WatchlistRepo,
+) -> GetPageWatchlistsUseCase:
+    """Get GetPageWatchlists use case."""
+    return GetPageWatchlistsUseCase(
+        watchlist_repository=watchlist_repo,
+        logger=get_logger("usecase.get_page_watchlists"),
+    )
+
+
+GetWatchlistWithDetailsUC = Annotated[
+    GetWatchlistWithDetailsUseCase,
+    Depends(get_watchlist_with_details_use_case),
+]
+ListWatchlistsWithCountsUC = Annotated[
+    ListWatchlistsWithCountsUseCase,
+    Depends(get_list_watchlists_with_counts_use_case),
+]
+GetPageWatchlistsUC = Annotated[
+    GetPageWatchlistsUseCase,
+    Depends(get_page_watchlists_use_case),
+]
+
+
+# =============================================================================
+# Monitoring Use Cases (Sprint 8.1)
+# =============================================================================
+
+
+def get_monitoring_summary_use_case(
+    page_repo: PageRepo,
+    scoring_repo: ScoringRepo,
+    alert_repo: AlertRepo,
+    metrics_repo: PageMetricsRepo,
+) -> GetMonitoringSummaryUseCase:
+    """Get GetMonitoringSummary use case."""
+    return GetMonitoringSummaryUseCase(
+        page_repository=page_repo,
+        scoring_repository=scoring_repo,
+        alert_repository=alert_repo,
+        metrics_repository=metrics_repo,
+        logger=get_logger("usecase.monitoring_summary"),
+    )
+
+
+GetMonitoringSummaryUC = Annotated[
+    GetMonitoringSummaryUseCase,
+    Depends(get_monitoring_summary_use_case),
 ]

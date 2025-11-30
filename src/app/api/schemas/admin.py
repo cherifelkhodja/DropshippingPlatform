@@ -179,3 +179,43 @@ class AdminScanListResponse(BaseModel):
     total: int = Field(description="Total number of matching scans")
     offset: int = Field(description="Current offset")
     limit: int = Field(description="Items per page")
+
+
+# =============================================================================
+# Monitoring Summary Schemas (Sprint 8.1)
+# =============================================================================
+
+
+class MonitoringSummaryResponse(BaseModel):
+    """System monitoring summary response.
+
+    Provides aggregated statistics about the platform's current state.
+    """
+
+    total_pages: int = Field(description="Total number of pages in the system")
+    pages_with_scores: int = Field(description="Number of pages with scores computed")
+    alerts_last_24h: int = Field(description="Number of alerts in the last 24 hours")
+    alerts_last_7d: int = Field(description="Number of alerts in the last 7 days")
+    last_metrics_snapshot_date: str | None = Field(
+        default=None, description="Date of the last metrics snapshot (ISO format)"
+    )
+    metrics_snapshots_count: int = Field(
+        description="Number of metrics snapshots (sample from recent pages)"
+    )
+    generated_at: datetime = Field(description="When this summary was generated")
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "total_pages": 1250,
+                    "pages_with_scores": 1100,
+                    "alerts_last_24h": 45,
+                    "alerts_last_7d": 312,
+                    "last_metrics_snapshot_date": "2024-03-20",
+                    "metrics_snapshots_count": 3650,
+                    "generated_at": "2024-03-20T15:45:00Z",
+                }
+            ]
+        }
+    }

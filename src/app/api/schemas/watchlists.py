@@ -209,3 +209,167 @@ def watchlist_item_to_response(item: WatchlistItem) -> WatchlistItemResponse:
         page_id=item.page_id,
         created_at=item.created_at,
     )
+
+
+# =============================================================================
+# Extended Schemas for UI (Sprint 8.1)
+# =============================================================================
+
+
+class WatchlistPageInfoResponse(BaseModel):
+    """Response for a page within a watchlist with details."""
+
+    page_id: str = Field(description="Page identifier")
+    page_name: str = Field(description="Page name/domain")
+    url: str = Field(description="Page URL")
+    country: str | None = Field(description="Country code")
+    is_shopify: bool = Field(description="Whether the page is a Shopify store")
+    shop_score: float = Field(description="Current shop score (0-100)")
+    tier: str = Field(description="Current tier (XXL, XL, L, M, S, XS)")
+    active_ads_count: int = Field(description="Number of active ads")
+    added_at: datetime = Field(description="When the page was added to watchlist")
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "page_id": "550e8400-e29b-41d4-a716-446655440001",
+                    "page_name": "example-store.com",
+                    "url": "https://example-store.com",
+                    "country": "FR",
+                    "is_shopify": True,
+                    "shop_score": 78.5,
+                    "tier": "XL",
+                    "active_ads_count": 15,
+                    "added_at": "2024-03-20T16:00:00Z",
+                }
+            ]
+        }
+    }
+
+
+class WatchlistWithDetailsResponse(BaseModel):
+    """Response for a watchlist with full page details."""
+
+    id: str = Field(description="Unique watchlist identifier")
+    name: str = Field(description="Watchlist name")
+    description: str | None = Field(description="Watchlist description")
+    created_at: datetime = Field(description="When the watchlist was created")
+    is_active: bool = Field(description="Whether the watchlist is active")
+    pages_count: int = Field(description="Number of pages in the watchlist")
+    pages: list[WatchlistPageInfoResponse] = Field(
+        description="List of pages with details"
+    )
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "id": "550e8400-e29b-41d4-a716-446655440000",
+                    "name": "Top FR Winners",
+                    "description": "French stores with high scores",
+                    "created_at": "2024-03-20T15:45:00Z",
+                    "is_active": True,
+                    "pages_count": 1,
+                    "pages": [
+                        {
+                            "page_id": "550e8400-e29b-41d4-a716-446655440001",
+                            "page_name": "example-store.com",
+                            "url": "https://example-store.com",
+                            "country": "FR",
+                            "is_shopify": True,
+                            "shop_score": 78.5,
+                            "tier": "XL",
+                            "active_ads_count": 15,
+                            "added_at": "2024-03-20T16:00:00Z",
+                        }
+                    ],
+                }
+            ]
+        }
+    }
+
+
+class WatchlistSummaryResponse(BaseModel):
+    """Response for a watchlist in list view with counts."""
+
+    id: str = Field(description="Unique watchlist identifier")
+    name: str = Field(description="Watchlist name")
+    description: str | None = Field(description="Watchlist description")
+    created_at: datetime = Field(description="When the watchlist was created")
+    is_active: bool = Field(description="Whether the watchlist is active")
+    pages_count: int = Field(description="Number of pages in the watchlist")
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "id": "550e8400-e29b-41d4-a716-446655440000",
+                    "name": "Top FR Winners",
+                    "description": "French stores with high scores",
+                    "created_at": "2024-03-20T15:45:00Z",
+                    "is_active": True,
+                    "pages_count": 42,
+                }
+            ]
+        }
+    }
+
+
+class WatchlistSummaryListResponse(BaseModel):
+    """Response for listing watchlists with counts."""
+
+    items: list[WatchlistSummaryResponse] = Field(
+        description="List of watchlist summaries"
+    )
+    count: int = Field(description="Number of watchlists returned")
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "items": [
+                        {
+                            "id": "550e8400-e29b-41d4-a716-446655440000",
+                            "name": "Top FR Winners",
+                            "description": "French stores with high scores",
+                            "created_at": "2024-03-20T15:45:00Z",
+                            "is_active": True,
+                            "pages_count": 42,
+                        }
+                    ],
+                    "count": 1,
+                }
+            ]
+        }
+    }
+
+
+class PageWatchlistsResponse(BaseModel):
+    """Response for listing watchlists that contain a page."""
+
+    page_id: str = Field(description="The page identifier")
+    watchlists: list[WatchlistResponse] = Field(
+        description="Watchlists containing this page"
+    )
+    count: int = Field(description="Number of watchlists")
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "page_id": "550e8400-e29b-41d4-a716-446655440001",
+                    "watchlists": [
+                        {
+                            "id": "550e8400-e29b-41d4-a716-446655440000",
+                            "name": "Top FR Winners",
+                            "description": "French stores with high scores",
+                            "created_at": "2024-03-20T15:45:00Z",
+                            "is_active": True,
+                        }
+                    ],
+                    "count": 1,
+                }
+            ]
+        }
+    }

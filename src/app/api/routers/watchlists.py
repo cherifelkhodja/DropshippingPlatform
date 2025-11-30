@@ -14,6 +14,11 @@ from src.app.api.schemas.watchlists import (
     WatchlistItemResponse,
     WatchlistItemListResponse,
     RescoreWatchlistResponse,
+    WatchlistSummaryResponse,
+    WatchlistSummaryListResponse,
+    WatchlistWithDetailsResponse,
+    WatchlistPageInfoResponse,
+    PageWatchlistsResponse,
     watchlist_to_response,
     watchlist_item_to_response,
 )
@@ -25,6 +30,9 @@ from src.app.api.dependencies import (
     RemovePageFromWatchlistUC,
     ListWatchlistItemsUC,
     RescoreWatchlistUC,
+    GetWatchlistWithDetailsUC,
+    ListWatchlistsWithCountsUC,
+    GetPageWatchlistsUC,
 )
 
 router = APIRouter(prefix="/watchlists", tags=["Watchlists"])
@@ -83,6 +91,41 @@ async def list_watchlists(
 
 
 @router.get(
+    "/summary",
+    response_model=WatchlistSummaryListResponse,
+    summary="List watchlists with counts",
+    description="List all watchlists with their page counts.",
+    responses={
+        500: {"model": ErrorResponse, "description": "Database error"},
+    },
+)
+async def list_watchlists_with_counts(
+    list_watchlists_counts_uc: ListWatchlistsWithCountsUC,
+    limit: int = Query(default=50, ge=1, le=100, description="Maximum number of items"),
+    offset: int = Query(default=0, ge=0, description="Number of items to skip"),
+) -> WatchlistSummaryListResponse:
+    """List all watchlists with page counts.
+
+    Returns a list of watchlists with their item counts for overview displays.
+    """
+    summaries = await list_watchlists_counts_uc.execute(limit=limit, offset=offset)
+    return WatchlistSummaryListResponse(
+        items=[
+            WatchlistSummaryResponse(
+                id=s.id,
+                name=s.name,
+                description=s.description,
+                created_at=s.created_at,
+                is_active=s.is_active,
+                pages_count=s.pages_count,
+            )
+            for s in summaries
+        ],
+        count=len(summaries),
+    )
+
+
+@router.get(
     "/{watchlist_id}",
     response_model=WatchlistResponse,
     summary="Get watchlist details",
@@ -99,6 +142,50 @@ async def get_watchlist(
     """Get details of a specific watchlist by ID."""
     watchlist = await get_watchlist_uc.execute(watchlist_id)
     return watchlist_to_response(watchlist)
+
+
+@router.get(
+    "/{watchlist_id}/details",
+    response_model=WatchlistWithDetailsResponse,
+    summary="Get watchlist with page details",
+    description="Get watchlist with full details for each page including scores.",
+    responses={
+        404: {"model": ErrorResponse, "description": "Watchlist not found"},
+        500: {"model": ErrorResponse, "description": "Database error"},
+    },
+)
+async def get_watchlist_with_details(
+    watchlist_id: str,
+    get_details_uc: GetWatchlistWithDetailsUC,
+) -> WatchlistWithDetailsResponse:
+    """Get a watchlist with enriched page information.
+
+    Returns the watchlist with full details for each page including
+    current scores, tiers, and active ads counts.
+    """
+    details = await get_details_uc.execute(watchlist_id)
+    return WatchlistWithDetailsResponse(
+        id=details.id,
+        name=details.name,
+        description=details.description,
+        created_at=details.created_at,
+        is_active=details.is_active,
+        pages_count=details.pages_count,
+        pages=[
+            WatchlistPageInfoResponse(
+                page_id=p.page_id,
+                page_name=p.page_name,
+                url=p.url,
+                country=p.country,
+                is_shopify=p.is_shopify,
+                shop_score=p.shop_score,
+                tier=p.tier,
+                active_ads_count=p.active_ads_count,
+                added_at=p.added_at,
+            )
+            for p in details.pages
+        ],
+    )
 
 
 @router.get(
@@ -211,4 +298,29 @@ async def scan_now(
         watchlist_id=watchlist_id,
         tasks_dispatched=tasks_dispatched,
         message=f"Dispatched {tasks_dispatched} scoring tasks for watchlist",
+    )
+
+
+@router.get(
+    "/by-page/{page_id}",
+    response_model=PageWatchlistsResponse,
+    summary="Get watchlists containing a page",
+    description="Find all watchlists that contain a specific page.",
+    responses={
+        500: {"model": ErrorResponse, "description": "Database error"},
+    },
+)
+async def get_page_watchlists(
+    page_id: str,
+    get_page_watchlists_uc: GetPageWatchlistsUC,
+) -> PageWatchlistsResponse:
+    """Get all watchlists that contain a specific page.
+
+    Useful for showing watchlist badges on page detail views.
+    """
+    watchlists = await get_page_watchlists_uc.execute(page_id)
+    return PageWatchlistsResponse(
+        page_id=page_id,
+        watchlists=[watchlist_to_response(w) for w in watchlists],
+        count=len(watchlists),
     )
