@@ -8,10 +8,12 @@ from .pages import router as pages_router
 from .products import router as products_router
 from .scans import router as scans_router
 from .watchlists import router as watchlists_router
+from .creative_insights import router as creative_insights_router
 
 __all__ = [
     "admin_router",
     "alerts_router",
+    "creative_insights_router",
     "health_router",
     "keywords_router",
     "pages_router",

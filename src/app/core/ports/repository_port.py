@@ -19,6 +19,7 @@ from ..domain.entities import (
     Alert,
     Product,
     PageDailyMetrics,
+    CreativeAnalysis,
 )
 from ..domain.value_objects import ScanId, RankingCriteria
 
@@ -608,6 +609,62 @@ class PageMetricsRepository(Protocol):
 
         Returns:
             List of PageDailyMetrics entities ordered by date ASC.
+
+        Raises:
+            RepositoryError: On database errors.
+        """
+        ...
+
+
+class CreativeAnalysisRepository(Protocol):
+    """Port interface for CreativeAnalysis entity persistence.
+
+    Defines the contract for storing and retrieving CreativeAnalysis entities
+    produced by the AI marketing creative analysis engine.
+
+    Usage:
+        This repository supports the IA Marketing V1 feature (Sprint 9),
+        enabling storage and retrieval of creative analysis results
+        for ads, including quality scores, marketing tags, and sentiment.
+    """
+
+    async def get_by_ad_id(self, ad_id: str) -> CreativeAnalysis | None:
+        """Retrieve a creative analysis by its associated ad ID.
+
+        Args:
+            ad_id: The unique ad identifier.
+
+        Returns:
+            The CreativeAnalysis entity if found, None otherwise.
+
+        Raises:
+            RepositoryError: On database errors.
+        """
+        ...
+
+    async def save(self, analysis: CreativeAnalysis) -> None:
+        """Save a new creative analysis.
+
+        If an analysis already exists for the ad_id, it will be replaced.
+
+        Args:
+            analysis: The CreativeAnalysis entity to save.
+
+        Raises:
+            RepositoryError: On database errors.
+        """
+        ...
+
+    async def list_for_page(self, page_id: str) -> Sequence[CreativeAnalysis]:
+        """List all creative analyses for ads belonging to a page.
+
+        Returns analyses ordered by creative_score descending (best first).
+
+        Args:
+            page_id: The page identifier to filter ads by.
+
+        Returns:
+            Sequence of CreativeAnalysis entities for the page's ads.
 
         Raises:
             RepositoryError: On database errors.

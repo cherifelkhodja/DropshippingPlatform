@@ -24,6 +24,7 @@ import {
   ChevronUp,
   ChevronDown,
   Zap,
+  Sparkles,
 } from "lucide-react";
 import {
   Card,
@@ -37,6 +38,9 @@ import {
   Button,
   ErrorState,
   LoadingState,
+  SentimentBadge,
+  QualityBadge,
+  CreativeScoreBadge,
   type Column,
 } from "@/components/ui";
 import { Header, PageContent, Breadcrumbs, RefreshButton } from "@/components/layout";
@@ -50,6 +54,8 @@ import {
   getPageWatchlists,
   getWatchlists,
   addPageToWatchlist,
+  getPageCreativeInsights,
+  triggerCreativeAnalysis,
 } from "@/lib/api";
 import type {
   PageResponse,
@@ -60,6 +66,8 @@ import type {
   AlertResponse,
   WatchlistResponse,
   WatchlistSummary,
+  PageCreativeInsightsResponse,
+  CreativeAnalysisResponse,
 } from "@/lib/types/api";
 
 /**
@@ -83,6 +91,8 @@ export default function PageDetailPage() {
   const [pageWatchlists, setPageWatchlists] = useState<WatchlistResponse[]>([]);
   const [allWatchlists, setAllWatchlists] = useState<WatchlistSummary[]>([]);
   const [showAddToWatchlist, setShowAddToWatchlist] = useState(false);
+  const [creativeInsights, setCreativeInsights] = useState<PageCreativeInsightsResponse | null>(null);
+  const [isReanalyzing, setIsReanalyzing] = useState(false);
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -93,7 +103,7 @@ export default function PageDetailPage() {
 
     try {
       // Fetch all data in parallel
-      const [pageData, scoreData, metricsData, insightsData, alertsData, watchlistsData, allWatchlistsData] = await Promise.allSettled([
+      const [pageData, scoreData, metricsData, insightsData, alertsData, watchlistsData, allWatchlistsData, creativeInsightsData] = await Promise.allSettled([
         getPageDetails(pageId),
         getPageScore(pageId),
         getPageMetricsHistory(pageId, { limit: 90 }),
@@ -101,6 +111,7 @@ export default function PageDetailPage() {
         getPageAlerts(pageId, 10),
         getPageWatchlists(pageId),
         getWatchlists(),
+        getPageCreativeInsights(pageId),
       ]);
 
       // Handle page data (required)
@@ -139,6 +150,11 @@ export default function PageDetailPage() {
       if (allWatchlistsData.status === "fulfilled") {
         setAllWatchlists(allWatchlistsData.value.items);
       }
+
+      // Handle creative insights (may not exist)
+      if (creativeInsightsData.status === "fulfilled") {
+        setCreativeInsights(creativeInsightsData.value);
+      }
     } catch (err) {
       console.error("Error fetching page data:", err);
       setError(err instanceof Error ? err.message : "Failed to load page");
@@ -156,6 +172,26 @@ export default function PageDetailPage() {
       setPageWatchlists(watchlistsData.watchlists);
     } catch (err) {
       console.error("Error adding page to watchlist:", err);
+    }
+  };
+
+  const handleReanalyzeCreatives = async () => {
+    setIsReanalyzing(true);
+    try {
+      await triggerCreativeAnalysis(pageId);
+      // Wait a bit then refresh insights (task runs in background)
+      setTimeout(async () => {
+        try {
+          const insights = await getPageCreativeInsights(pageId);
+          setCreativeInsights(insights);
+        } catch {
+          // Ignore errors - insights will update on next page load
+        }
+        setIsReanalyzing(false);
+      }, 3000);
+    } catch (err) {
+      console.error("Error triggering creative analysis:", err);
+      setIsReanalyzing(false);
     }
   };
 
@@ -572,6 +608,112 @@ export default function PageDetailPage() {
                   {page.is_shopify
                     ? "Try syncing products first"
                     : "Product insights are only available for Shopify stores"}
+                </p>
+              </div>
+            )}
+          </CardBody>
+        </Card>
+
+        {/* Creative Insights Section */}
+        <Card className="mt-8">
+          <CardHeader
+            action={
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleReanalyzeCreatives}
+                disabled={isReanalyzing}
+                className="flex items-center gap-1"
+              >
+                <RefreshCw className={`w-4 h-4 ${isReanalyzing ? "animate-spin" : ""}`} />
+                {isReanalyzing ? "Analyzing..." : "Re-analyze Creatives"}
+              </Button>
+            }
+          >
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-yellow-400" />
+              Creative Insights
+            </div>
+          </CardHeader>
+          <CardBody>
+            {creativeInsights && creativeInsights.total_analyzed > 0 ? (
+              <>
+                {/* Summary stats */}
+                <div className="grid grid-cols-4 gap-4 mb-6 p-4 bg-slate-800/50 rounded-lg">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-slate-100">
+                      {creativeInsights.avg_score.toFixed(1)}
+                    </p>
+                    <p className="text-xs text-slate-500">Avg Score</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-green-400">
+                      {creativeInsights.best_score.toFixed(1)}
+                    </p>
+                    <p className="text-xs text-slate-500">Best Score</p>
+                  </div>
+                  <div className="text-center">
+                    <QualityBadge tier={creativeInsights.quality_tier} size="lg" />
+                    <p className="text-xs text-slate-500 mt-1">Quality Tier</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-purple-400">
+                      {creativeInsights.total_analyzed}
+                    </p>
+                    <p className="text-xs text-slate-500">Analyzed</p>
+                  </div>
+                </div>
+
+                {/* Top creatives */}
+                {creativeInsights.top_creatives.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-medium text-slate-400 mb-4">
+                      Top Performing Creatives
+                    </h4>
+                    <div className="space-y-3">
+                      {creativeInsights.top_creatives.map((creative) => (
+                        <div
+                          key={creative.id}
+                          className="p-4 bg-slate-800/50 rounded-lg"
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-center gap-3">
+                              <CreativeScoreBadge score={creative.creative_score} />
+                              <SentimentBadge sentiment={creative.sentiment} />
+                            </div>
+                            <span className="text-xs text-slate-500">
+                              {new Date(creative.created_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {creative.style_tags.map((tag) => (
+                              <Badge key={`style-${tag}`} variant="info" size="sm">
+                                {tag}
+                              </Badge>
+                            ))}
+                            {creative.angle_tags.map((tag) => (
+                              <Badge key={`angle-${tag}`} variant="success" size="sm">
+                                {tag}
+                              </Badge>
+                            ))}
+                            {creative.tone_tags.map((tag) => (
+                              <Badge key={`tone-${tag}`} variant="warning" size="sm">
+                                {tag}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="py-12 text-center text-slate-500">
+                <Sparkles className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>No creative insights available</p>
+                <p className="text-sm mt-1">
+                  Click &quot;Re-analyze Creatives&quot; to analyze ad creatives
                 </p>
               </div>
             )}

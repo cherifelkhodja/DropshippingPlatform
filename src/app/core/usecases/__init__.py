@@ -58,6 +58,12 @@ from .build_product_insights import (
     BuildProductInsightsForPageUseCase,
     BuildProductInsightsResult,
 )
+from .creative_insights import (
+    AnalyzeAdCreativeUseCase,
+    AnalyzeAdCreativeResult,
+    BuildPageCreativeInsightsUseCase,
+    BuildPageCreativeInsightsResult,
+)
 
 __all__ = [
     # Search Ads
@@ -98,4 +104,9 @@ __all__ = [
     # Build Product Insights
     "BuildProductInsightsForPageUseCase",
     "BuildProductInsightsResult",
+    # Creative Insights (IA Marketing)
+    "AnalyzeAdCreativeUseCase",
+    "AnalyzeAdCreativeResult",
+    "BuildPageCreativeInsightsUseCase",
+    "BuildPageCreativeInsightsResult",
 ]

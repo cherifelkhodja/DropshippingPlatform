@@ -43,6 +43,10 @@ from src.app.adapters.outbound.repositories.product_repository import (
 from src.app.adapters.outbound.repositories.page_metrics_repository import (
     PostgresPageMetricsRepository,
 )
+from src.app.adapters.outbound.repositories.creative_analysis_repository import (
+    PostgresCreativeAnalysisRepository,
+)
+from src.app.adapters.outbound.creative_text_analyzer import HeuristicCreativeTextAnalyzer
 from src.app.core.usecases.analyse_page_deep import AnalysePageDeepUseCase
 from src.app.core.usecases.analyse_website import AnalyseWebsiteUseCase
 from src.app.core.usecases.compute_shop_score import ComputeShopScoreUseCase
@@ -50,6 +54,7 @@ from src.app.core.usecases.extract_product_count import ExtractProductCountUseCa
 from src.app.core.usecases.watchlists import RescoreWatchlistUseCase
 from src.app.core.usecases.detect_alerts_for_page import DetectAlertsForPageUseCase
 from src.app.core.usecases.metrics import RecordDailyMetricsForAllPagesUseCase
+from src.app.core.usecases.creative_insights import BuildPageCreativeInsightsUseCase
 from src.app.infrastructure.logging.logger_adapter import StandardLoggingAdapter
 from src.app.infrastructure.settings.runtime_settings import get_settings
 
@@ -355,6 +360,26 @@ class WorkerContainer:
             product_repository=PostgresProductRepository(db_session),
             page_metrics_repository=PostgresPageMetricsRepository(db_session),
             logger=self._get_logger("record_daily_metrics"),
+        )
+
+    async def get_build_page_creative_insights_use_case(
+        self,
+        db_session: AsyncSession,
+    ) -> BuildPageCreativeInsightsUseCase:
+        """Create the BuildPageCreativeInsights use case with all dependencies.
+
+        Args:
+            db_session: Database session for repositories.
+
+        Returns:
+            BuildPageCreativeInsightsUseCase: Configured use case instance.
+        """
+        return BuildPageCreativeInsightsUseCase(
+            page_repository=PostgresPageRepository(db_session),
+            ads_repository=PostgresAdsRepository(db_session),
+            creative_analysis_repository=PostgresCreativeAnalysisRepository(db_session),
+            text_analyzer=HeuristicCreativeTextAnalyzer(),
+            logger=self._get_logger("creative_insights"),
         )
 
     @asynccontextmanager

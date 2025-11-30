@@ -1,7 +1,7 @@
 # PROJECT MEMORY — Dropshipping Platform
 
 > **Purpose**: Persistent memory file for AI assistants working on this project.
-> **Last Updated**: v0.8.1 (Sprint 8.1 — Dashboard++ Watchlists, Alerts, Monitoring)
+> **Last Updated**: v0.9.0 (Sprint 9 — IA Marketing V1 / Creative Analysis Engine)
 > **Maintainer**: Claude Code / Tech Lead
 
 ---
@@ -11,9 +11,9 @@
 | Key | Value |
 |-----|-------|
 | **Project Name** | Dropshipping Platform |
-| **Current Version** | v0.8.1 (Backend v0.7.1 + Dashboard v0.2.0) |
-| **Current Sprint** | Sprint 8.1 — Dashboard++ (completed) |
-| **Last Action** | Watchlists UI, Alerts UI, Monitoring dashboard, page detail integration |
+| **Current Version** | v0.9.0 (Backend v0.9.0 + Dashboard v0.3.0) |
+| **Current Sprint** | Sprint 9 — IA Marketing V1 (completed) |
+| **Last Action** | Creative Analysis Engine: domain, use cases, Celery task, API, dashboard integration |
 | **Architecture** | Hexagonal (Ports & Adapters) + React Frontend |
 | **Python Version** | 3.11+ |
 | **Node Version** | 18+ (frontend) |
@@ -833,6 +833,127 @@ New test files:
 - `__tests__/app/watchlists.test.tsx` - Watchlist pages tests
 - `__tests__/app/alerts.test.tsx` - Alerts page tests
 - `__tests__/app/monitoring.test.tsx` - Monitoring page tests
+
+
+### Sprint 9 — IA Marketing V1 / Creative Analysis Engine (COMPLETED → v0.9.0)
+
+Sprint 9 introduces the first version of the AI-powered marketing creative analysis engine.
+This feature analyzes ad creative text to score quality, extract tags, and determine sentiment.
+
+#### Domain Layer (`core/domain/entities/creative_analysis.py`)
+- **`CreativeTextAnalysisResult`** value object:
+  - `creative_score` (0-100): Quality score based on marketing heuristics
+  - `style_tags`: Visual/copy style (minimalist, bold, direct, conversational, etc.)
+  - `angle_tags`: Marketing angles (urgency, social-proof, benefit-driven, etc.)
+  - `tone_tags`: Communication tone (casual, professional, emotional, etc.)
+  - `sentiment`: Overall sentiment (positive, neutral, negative)
+- **`CreativeAnalysis`** entity:
+  - Immutable analysis record linked to an ad
+  - Factory method `create()` for building from analysis result
+  - Helper property `tags_count` for total tags
+- **`PageCreativeInsights`** read-model:
+  - Aggregated insights for all ads of a page
+  - Properties: `avg_score`, `best_score`, `quality_tier`, `top_creatives`
+  - Factory method `from_analyses()` for aggregation
+  - Quality tier mapping: excellent (≥80), good (≥60), average (≥40), poor (<40)
+
+#### Ports & Adapters
+- **`CreativeTextAnalyzerPort`** (`core/ports/creative_text_analyzer_port.py`):
+  - Protocol defining text analysis interface
+  - Method: `analyze_text(text) → CreativeTextAnalysisResult`
+- **`CreativeAnalysisRepository`** (`core/ports/repository_port.py`):
+  - Port for analysis persistence
+  - Methods: `save()`, `get_by_ad_id()`, `list_for_page()`
+- **`HeuristicCreativeTextAnalyzer`** (`adapters/outbound/creative_text_analyzer.py`):
+  - V1 pure Python implementation (no external API calls)
+  - Scoring algorithm (0-100):
+    - Base: 20 points
+    - Length bonus: up to 15 points (optimal 100-300 chars)
+    - Hook presence: 15 points (questions, "you", attention words)
+    - Benefit keywords: 15 points (save, free, results, etc.)
+    - CTA presence: 15 points (buy now, shop now, click here)
+    - Social proof: 10 points (reviews, testimonials, numbers)
+    - Emotional words: 10 points (amazing, incredible, etc.)
+  - Tag extraction via keyword matching
+  - Sentiment via positive/negative lexicon analysis
+- **`PostgresCreativeAnalysisRepository`** (`adapters/outbound/repositories/`):
+  - SQLAlchemy async implementation
+  - JSONB columns for tag arrays
+
+#### Database
+- **Migration 0008**: Creates `creative_analyses` table
+  - Columns: id, ad_id (FK unique), creative_score, style_tags (JSONB), angle_tags (JSONB), tone_tags (JSONB), sentiment, analysis_version, created_at
+  - Indexes: `ad_id` (unique), `created_at DESC`
+
+#### Use Cases (`core/usecases/creative_insights.py`)
+- **`AnalyzeAdCreativeUseCase`**:
+  - Analyzes a single ad's creative text
+  - Idempotent: returns cached analysis if exists
+  - Method `execute_for_ad(ad)`: preferred when ad entity available
+  - Combines ad title + body + cta_type for analysis
+- **`BuildPageCreativeInsightsUseCase`**:
+  - Aggregates creative insights for all ads of a page
+  - Calls AnalyzeAdCreativeUseCase for each ad
+  - Returns PageCreativeInsights with top N creatives
+  - Handles missing/failed analyses gracefully
+
+#### Celery Task (`infrastructure/celery/tasks.py`)
+- **`analyze_creatives_for_page_task`**:
+  - Dispatches creative analysis for all ads of a page
+  - Uses BuildPageCreativeInsightsUseCase
+  - Returns summary: page_id, total_analyzed, avg_score, quality_tier
+
+#### API Endpoints (`api/routers/creative_insights.py`)
+- **`GET /pages/{page_id}/creatives/insights`**:
+  - Returns aggregated creative insights for a page
+  - Response: avg_score, best_score, quality_tier, top_creatives[]
+- **`GET /ads/{ad_id}/analysis`**:
+  - Returns analysis for a specific ad
+  - 404 if analysis not found
+- **`POST /admin/pages/{page_id}/creatives/analyze`** (Admin):
+  - Triggers background analysis via Celery task
+  - Protected by X-Admin-Api-Key
+  - Returns: status, message, task_id
+
+#### API Schemas (`api/schemas/creative_insights.py`)
+- `CreativeAnalysisResponse`: Single ad analysis
+- `PageCreativeInsightsResponse`: Page-level aggregation
+- `AnalyzeCreativesResponse`: Task dispatch result
+
+#### Frontend Integration (`frontend/`)
+- **Types** (`lib/types/api.ts`):
+  - `Sentiment`, `QualityTier` types
+  - `CreativeAnalysisResponse`, `PageCreativeInsightsResponse` interfaces
+- **API Client** (`lib/api/client.ts`):
+  - `getPageCreativeInsights(pageId)`
+  - `getAdCreativeAnalysis(adId)`
+  - `triggerCreativeAnalysis(pageId)`
+- **Components** (`components/ui/Badge.tsx`):
+  - `SentimentBadge`: Color-coded sentiment display
+  - `QualityBadge`: Quality tier display
+  - `CreativeScoreBadge`: Score display with color gradient
+- **Page Detail** (`app/pages/[pageId]/page.tsx`):
+  - New "Creative Insights" section
+  - Summary stats: avg_score, best_score, quality_tier, total_analyzed
+  - Top creatives list with tags and sentiment badges
+  - "Re-analyze Creatives" button
+
+#### Testing
+- **Unit Tests** (`tests/unit/adapters/test_creative_text_analyzer.py`):
+  - 19 tests for HeuristicCreativeTextAnalyzer
+  - Tests for scoring, tag detection, sentiment analysis
+- **Use Case Tests** (`tests/usecases/test_creative_insights.py`):
+  - 14 tests for AnalyzeAdCreativeUseCase and BuildPageCreativeInsightsUseCase
+  - Tests for quality tiers, score calculations, idempotency
+- **Test Fixtures** (`tests/conftest.py`):
+  - `FakeCreativeAnalysisRepository`
+  - `FakeCreativeTextAnalyzer`
+
+#### Architecture Notes
+- V1 uses pure Python heuristics (no external API dependencies)
+- Future V2 could integrate LLM-based analysis
+- Analysis is idempotent per ad (cached in database)
+- Quality tier thresholds are configurable in domain layer
 
 
 ## 7. IMPORTANT CONVENTIONS

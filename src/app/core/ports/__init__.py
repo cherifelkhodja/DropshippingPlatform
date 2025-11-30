@@ -20,7 +20,9 @@ from .repository_port import (
     AlertRepository,
     ProductRepository,
     PageMetricsRepository,
+    CreativeAnalysisRepository,
 )
+from .creative_text_analyzer_port import CreativeTextAnalyzerPort
 from .task_dispatcher_port import TaskDispatcherPort
 from .logging_port import LoggingPort
 from .product_extractor_port import ProductExtractorPort, ProductExtractionResult
@@ -41,6 +43,9 @@ __all__ = [
     "AlertRepository",
     "ProductRepository",
     "PageMetricsRepository",
+    "CreativeAnalysisRepository",
+    # Creative Text Analysis
+    "CreativeTextAnalyzerPort",
     # Product Extraction
     "ProductExtractorPort",
     "ProductExtractionResult",

@@ -103,6 +103,12 @@ class AdModel(Base):
         "PageModel",
         back_populates="ads",
     )
+    creative_analysis: Mapped["CreativeAnalysisModel"] = relationship(  # noqa: F821
+        "CreativeAnalysisModel",
+        back_populates="ad",
+        uselist=False,
+        lazy="selectin",
+    )
 
     def __repr__(self) -> str:
         """Return string representation."""

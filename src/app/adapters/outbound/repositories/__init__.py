@@ -27,6 +27,9 @@ from src.app.adapters.outbound.repositories.product_repository import (
 from src.app.adapters.outbound.repositories.page_metrics_repository import (
     PostgresPageMetricsRepository,
 )
+from src.app.adapters.outbound.repositories.creative_analysis_repository import (
+    PostgresCreativeAnalysisRepository,
+)
 
 __all__ = [
     "PostgresPageRepository",
@@ -37,4 +40,5 @@ __all__ = [
     "PostgresWatchlistRepository",
     "PostgresProductRepository",
     "PostgresPageMetricsRepository",
+    "PostgresCreativeAnalysisRepository",
 ]

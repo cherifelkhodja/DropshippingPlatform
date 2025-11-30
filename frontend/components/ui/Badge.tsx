@@ -1,7 +1,7 @@
 "use client";
 
 import clsx from "clsx";
-import type { Tier, MatchStrength } from "@/lib/types/api";
+import type { Tier, MatchStrength, Sentiment, QualityTier } from "@/lib/types/api";
 
 interface TierBadgeProps {
   tier: Tier;
@@ -154,6 +154,121 @@ export function Badge({
       )}
     >
       {children}
+    </span>
+  );
+}
+
+// =============================================================================
+// Creative Analysis Badges (Sprint 9)
+// =============================================================================
+
+interface SentimentBadgeProps {
+  sentiment: Sentiment;
+  size?: "sm" | "md" | "lg";
+  className?: string;
+}
+
+interface QualityBadgeProps {
+  tier: QualityTier;
+  size?: "sm" | "md" | "lg";
+  className?: string;
+}
+
+interface CreativeScoreBadgeProps {
+  score: number;
+  size?: "sm" | "md" | "lg";
+  className?: string;
+}
+
+const sentimentStyles: Record<Sentiment, string> = {
+  positive: "bg-green-500/20 text-green-400 border-green-500/30",
+  neutral: "bg-gray-500/20 text-gray-400 border-gray-500/30",
+  negative: "bg-red-500/20 text-red-400 border-red-500/30",
+};
+
+const sentimentIcons: Record<Sentiment, string> = {
+  positive: "😊",
+  neutral: "😐",
+  negative: "😟",
+};
+
+const qualityStyles: Record<QualityTier, string> = {
+  excellent: "bg-green-500/20 text-green-400 border-green-500/30",
+  good: "bg-lime-500/20 text-lime-400 border-lime-500/30",
+  average: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+  poor: "bg-red-500/20 text-red-400 border-red-500/30",
+};
+
+/**
+ * Badge component for displaying sentiment.
+ */
+export function SentimentBadge({
+  sentiment,
+  size = "md",
+  className,
+}: SentimentBadgeProps) {
+  return (
+    <span
+      className={clsx(
+        "inline-flex items-center gap-1 rounded-full border font-medium capitalize",
+        sentimentStyles[sentiment],
+        sizeStyles[size],
+        className
+      )}
+    >
+      <span>{sentimentIcons[sentiment]}</span>
+      <span>{sentiment}</span>
+    </span>
+  );
+}
+
+/**
+ * Badge component for displaying quality tier.
+ */
+export function QualityBadge({
+  tier,
+  size = "md",
+  className,
+}: QualityBadgeProps) {
+  return (
+    <span
+      className={clsx(
+        "inline-flex items-center rounded-full border font-medium capitalize",
+        qualityStyles[tier],
+        sizeStyles[size],
+        className
+      )}
+    >
+      {tier}
+    </span>
+  );
+}
+
+/**
+ * Badge component for displaying creative score.
+ * Score is color-coded: 70+ green, 50-70 yellow, <50 red.
+ */
+export function CreativeScoreBadge({
+  score,
+  size = "md",
+  className,
+}: CreativeScoreBadgeProps) {
+  const getScoreStyle = (s: number): string => {
+    if (s >= 70) return "bg-green-500/20 text-green-400 border-green-500/30";
+    if (s >= 50) return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
+    return "bg-red-500/20 text-red-400 border-red-500/30";
+  };
+
+  return (
+    <span
+      className={clsx(
+        "inline-flex items-center rounded-full border font-bold tabular-nums",
+        getScoreStyle(score),
+        sizeStyles[size],
+        className
+      )}
+    >
+      {score.toFixed(0)}
     </span>
   );
 }

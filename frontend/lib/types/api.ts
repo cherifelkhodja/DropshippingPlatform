@@ -415,3 +415,38 @@ export interface AdminScanListResponse {
   offset: number;
   limit: number;
 }
+
+// =============================================================================
+// Creative Analysis Types (Sprint 9)
+// =============================================================================
+
+export type Sentiment = "positive" | "neutral" | "negative";
+export type QualityTier = "excellent" | "good" | "average" | "poor";
+
+export interface CreativeAnalysisResponse {
+  id: string;
+  ad_id: string;
+  creative_score: number;
+  style_tags: string[];
+  angle_tags: string[];
+  tone_tags: string[];
+  sentiment: Sentiment;
+  analysis_version: string;
+  created_at: string;
+}
+
+export interface PageCreativeInsightsResponse {
+  page_id: string;
+  avg_score: number;
+  best_score: number;
+  quality_tier: QualityTier;
+  top_creatives: CreativeAnalysisResponse[];
+  total_analyzed: number;
+  computed_at: string;
+}
+
+export interface AnalyzeCreativesResponse {
+  status: "dispatched" | "error";
+  message: string;
+  task_id: string | null;
+}

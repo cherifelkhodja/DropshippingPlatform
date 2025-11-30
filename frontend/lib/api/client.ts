@@ -34,6 +34,10 @@ import {
   AdminPageListResponse,
   AdminKeywordListResponse,
   AdminScanListResponse,
+  // Creative Insights Types (Sprint 9)
+  PageCreativeInsightsResponse,
+  CreativeAnalysisResponse,
+  AnalyzeCreativesResponse,
 } from "@/lib/types/api";
 
 // =============================================================================
@@ -488,6 +492,56 @@ export async function triggerDailySnapshot(
     {
       method: "POST",
       body: JSON.stringify({ snapshot_date: snapshotDate }),
+    }
+  );
+}
+
+// =============================================================================
+// Creative Insights (Sprint 9)
+// =============================================================================
+
+/**
+ * Get creative insights for a page.
+ * Uses GET /pages/{pageId}/creatives/insights endpoint.
+ */
+export async function getPageCreativeInsights(
+  pageId: string
+): Promise<PageCreativeInsightsResponse> {
+  return apiFetch<PageCreativeInsightsResponse>(
+    `/pages/${encodeURIComponent(pageId)}/creatives/insights`
+  );
+}
+
+/**
+ * Get creative analysis for a specific ad.
+ * Uses GET /ads/{adId}/analysis endpoint.
+ */
+export async function getAdCreativeAnalysis(
+  adId: string
+): Promise<CreativeAnalysisResponse> {
+  return apiFetch<CreativeAnalysisResponse>(
+    `/ads/${encodeURIComponent(adId)}/analysis`
+  );
+}
+
+/**
+ * Trigger creative analysis for a page (Admin).
+ * Uses POST /admin/pages/{pageId}/creatives/analyze endpoint.
+ */
+export async function triggerCreativeAnalysis(
+  pageId: string,
+  adminApiKey?: string
+): Promise<AnalyzeCreativesResponse> {
+  const headers: Record<string, string> = {};
+  if (adminApiKey) {
+    headers["X-Admin-Api-Key"] = adminApiKey;
+  }
+
+  return apiFetch<AnalyzeCreativesResponse>(
+    `/admin/pages/${encodeURIComponent(pageId)}/creatives/analyze`,
+    {
+      method: "POST",
+      headers,
     }
   );
 }

@@ -12,6 +12,7 @@ from src.app.infrastructure.db.mappers import shop_score_mapper
 from src.app.infrastructure.db.mappers import watchlist_mapper
 from src.app.infrastructure.db.mappers import product_mapper
 from src.app.infrastructure.db.mappers import page_daily_metrics_mapper
+from src.app.infrastructure.db.mappers import creative_analysis_mapper
 
 __all__ = [
     "page_mapper",
@@ -22,4 +23,5 @@ __all__ = [
     "watchlist_mapper",
     "product_mapper",
     "page_daily_metrics_mapper",
+    "creative_analysis_mapper",
 ]

@@ -224,3 +224,49 @@ class CeleryTaskDispatcher(TaskDispatcherPort):
                 task_name="compute_shop_score",
                 reason=str(exc),
             ) from exc
+
+    def dispatch_analyze_creatives_for_page(
+        self,
+        page_id: str,
+    ) -> AsyncResult:
+        """Dispatch a creative analysis task for a page.
+
+        Args:
+            page_id: The page to analyze creatives for.
+
+        Returns:
+            The AsyncResult for tracking the dispatched task.
+
+        Raises:
+            TaskDispatchError: If the task cannot be dispatched.
+        """
+        self._logger.info(
+            "Dispatching analyze_creatives_for_page task",
+            extra={
+                "page_id": page_id,
+            },
+        )
+
+        try:
+            result: AsyncResult = self._celery.send_task(
+                "tasks.analyze_creatives_for_page",
+                args=[page_id],
+            )
+            self._logger.debug(
+                "Task dispatched successfully",
+                extra={"task_id": result.id, "task_name": "analyze_creatives_for_page"},
+            )
+            return result
+        except Exception as exc:
+            self._logger.error(
+                "Failed to dispatch analyze_creatives_for_page task",
+                extra={
+                    "page_id": page_id,
+                    "error": str(exc),
+                },
+                exc_info=True,
+            )
+            raise TaskDispatchError(
+                task_name="analyze_creatives_for_page",
+                reason=str(exc),
+            ) from exc
