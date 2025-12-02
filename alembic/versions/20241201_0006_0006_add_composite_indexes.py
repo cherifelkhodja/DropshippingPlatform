@@ -8,6 +8,7 @@ Create Date: 2024-12-01
 from typing import Sequence, Union
 
 from alembic import op
+import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = "0006"
@@ -27,14 +28,14 @@ def upgrade() -> None:
     op.create_index(
         "ix_shop_scores_page_id_created_at_desc",
         "shop_scores",
-        ["page_id", op.desc("created_at")],
+        ["page_id", sa.text("created_at DESC")],
     )
 
     # alerts: composite index for listing alerts by page
     op.create_index(
         "ix_alerts_page_id_created_at_desc",
         "alerts",
-        ["page_id", op.desc("created_at")],
+        ["page_id", sa.text("created_at DESC")],
     )
 
 
