@@ -81,7 +81,7 @@ class PostgresPageRepository:
         """Check if a page exists.
 
         Args:
-            page_id: The unique page identifier.
+            page_id: The unique page identifier (can be UUID or Meta page ID).
 
         Returns:
             True if the page exists, False otherwise.
@@ -90,7 +90,15 @@ class PostgresPageRepository:
             RepositoryError: On database errors.
         """
         try:
-            stmt = select(PageModel.id).where(PageModel.id == UUID(page_id))
+            # Try to parse as UUID - Meta page IDs are numeric and won't parse
+            page_uuid = UUID(page_id)
+        except ValueError:
+            # Not a valid UUID (e.g., Meta page ID like "123456789")
+            # These can't exist in our UUID-based pages table
+            return False
+
+        try:
+            stmt = select(PageModel.id).where(PageModel.id == page_uuid)
             result = await self._session.execute(stmt)
             return result.scalar_one_or_none() is not None
         except SQLAlchemyError as exc:
@@ -124,7 +132,7 @@ class PostgresPageRepository:
         """Check if a page is blacklisted.
 
         Args:
-            page_id: The unique page identifier.
+            page_id: The unique page identifier (can be UUID or Meta page ID).
 
         Returns:
             True if the page is blacklisted, False otherwise.
@@ -133,8 +141,16 @@ class PostgresPageRepository:
             RepositoryError: On database errors.
         """
         try:
+            # Try to parse as UUID - Meta page IDs are numeric and won't parse
+            page_uuid = UUID(page_id)
+        except ValueError:
+            # Not a valid UUID (e.g., Meta page ID like "123456789")
+            # These can't be in our UUID-based blacklist, so return False
+            return False
+
+        try:
             stmt = select(BlacklistedPageModel.page_id).where(
-                BlacklistedPageModel.page_id == UUID(page_id)
+                BlacklistedPageModel.page_id == page_uuid
             )
             result = await self._session.execute(stmt)
             return result.scalar_one_or_none() is not None
