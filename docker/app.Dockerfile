@@ -20,6 +20,7 @@ COPY pyproject.toml ./
 COPY requirements*.txt ./
 
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel \
+    && pip install --no-cache-dir . \
     && pip install --no-cache-dir -r requirements-dev.txt
 
 # =============================================================================
