@@ -46,10 +46,20 @@ interface SearchResult {
  *
  * Allows users to search for ads via the Meta Ads Library API.
  */
+// Limit options
+const LIMIT_OPTIONS = [
+  { value: 500, label: "500 annonces" },
+  { value: 1000, label: "1 000 annonces" },
+  { value: 2000, label: "2 000 annonces" },
+  { value: 3000, label: "3 000 annonces" },
+  { value: 5000, label: "5 000 annonces (max)" },
+];
+
 export default function SearchPage() {
   const [keywords, setKeywords] = useState("");
   const [country, setCountry] = useState("FR");
   const [language, setLanguage] = useState("");
+  const [limit, setLimit] = useState(1000);
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<SearchResult[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -86,7 +96,7 @@ export default function SearchPage() {
           keyword,
           country,
           language: language || undefined,
-          limit: 1000,
+          limit,
         });
 
         setResults((prev) => [...prev, result]);
@@ -183,6 +193,28 @@ export default function SearchPage() {
                       </option>
                     ))}
                   </select>
+                </div>
+
+                {/* Limit Select */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Limite de resultats
+                  </label>
+                  <select
+                    value={limit}
+                    onChange={(e) => setLimit(Number(e.target.value))}
+                    className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    disabled={isLoading}
+                  >
+                    {LIMIT_OPTIONS.map((l) => (
+                      <option key={l.value} value={l.value}>
+                        {l.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-slate-500">
+                    L'API paginera automatiquement pour recuperer tous les resultats
+                  </p>
                 </div>
 
                 {/* Error Message */}
