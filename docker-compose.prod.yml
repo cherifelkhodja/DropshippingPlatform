@@ -1,0 +1,20 @@
+# Production override - use with: docker compose -f docker-compose.yml -f docker-compose.prod.yml up
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/app.Dockerfile
+      target: production
+    environment:
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+    # No volume mounts in production - use built image
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/app.Dockerfile
+      target: production
+    environment:
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
