@@ -37,14 +37,23 @@ lint-check: ## Run linters without fixing
 	ruff format --check src tests
 	mypy src --ignore-missing-imports
 
-up: ## Start all Docker services
+up: ## Start all Docker services (development)
 	docker compose up -d
 
-up-build: ## Build and start all Docker services
+up-build: ## Build and start all Docker services (development)
 	docker compose up -d --build
+
+up-prod: ## Start all Docker services (production)
+	docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+up-prod-build: ## Build and start all Docker services (production)
+	docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
 down: ## Stop all Docker services
 	docker compose down
+
+down-prod: ## Stop production Docker services
+	docker compose -f docker-compose.yml -f docker-compose.prod.yml down
 
 down-v: ## Stop all Docker services and remove volumes
 	docker compose down -v
@@ -63,6 +72,9 @@ logs: ## Show Docker logs
 
 logs-app: ## Show app container logs
 	docker compose logs -f app
+
+logs-prod: ## Show production Docker logs
+	docker compose -f docker-compose.yml -f docker-compose.prod.yml logs -f
 
 shell: ## Open shell in app container
 	docker compose exec app bash
