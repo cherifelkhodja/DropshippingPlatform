@@ -3,7 +3,9 @@
 Translates domain errors to HTTP responses.
 """
 
+import logging
 import time
+import traceback
 from collections.abc import Callable
 from typing import Any
 
@@ -230,11 +232,19 @@ async def generic_error_handler(
     exc: Exception,
 ) -> JSONResponse:
     """Handle unexpected errors (500 Internal Server Error)."""
+    logger = logging.getLogger(__name__)
+    logger.error(
+        "Unhandled exception on %s %s: %s\n%s",
+        request.method,
+        request.url.path,
+        str(exc),
+        traceback.format_exc(),
+    )
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content=create_error_response(
             error="InternalError",
-            message="An unexpected error occurred",
+            message=f"An unexpected error occurred: {exc.__class__.__name__}",
         ),
     )
 
@@ -296,6 +306,9 @@ def register_exception_handlers(app: FastAPI) -> None:
     ]
     for error_class in validation_errors:
         app.add_exception_handler(error_class, domain_validation_error_handler)  # type: ignore[arg-type]
+
+    # Generic catch-all handler (must be last)
+    app.add_exception_handler(Exception, generic_error_handler)
 
 
 def create_request_logging_middleware(
