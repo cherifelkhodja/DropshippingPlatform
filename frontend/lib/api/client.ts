@@ -545,3 +545,41 @@ export async function triggerCreativeAnalysis(
     }
   );
 }
+
+// =============================================================================
+// Keyword Search API Functions
+// =============================================================================
+
+export interface KeywordSearchParams {
+  keyword: string;
+  country: string;
+  language?: string;
+  limit?: number;
+}
+
+export interface KeywordSearchResult {
+  scan_id: string;
+  keyword: string;
+  country: string;
+  ads_found: number;
+  pages_found: number;
+  new_pages: number;
+}
+
+/**
+ * Search for ads by keyword via Meta Ads Library API.
+ * Uses POST /keywords/search endpoint.
+ */
+export async function searchByKeyword(
+  params: KeywordSearchParams
+): Promise<KeywordSearchResult> {
+  return apiFetch<KeywordSearchResult>("/keywords/search", {
+    method: "POST",
+    body: JSON.stringify({
+      keyword: params.keyword,
+      country: params.country,
+      language: params.language,
+      limit: params.limit || 50,
+    }),
+  });
+}
