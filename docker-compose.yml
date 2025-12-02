@@ -81,6 +81,24 @@ services:
         condition: service_healthy
     command: ["celery", "-A", "src.app.infrastructure.celery.celery_app", "worker", "--loglevel=info"]
 
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+    container_name: dropshipping_frontend
+    restart: unless-stopped
+    environment:
+      - NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
+    ports:
+      - "3000:3000"
+    networks:
+      - backend_net
+    volumes:
+      - ./frontend:/app:cached
+      - /app/node_modules
+    depends_on:
+      - app
+
   mockserver:
     image: python:3.11-slim
     container_name: dropshipping_mockserver
