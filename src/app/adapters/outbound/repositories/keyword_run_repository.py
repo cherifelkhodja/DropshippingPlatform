@@ -3,6 +3,9 @@
 Implements KeywordRunRepository port with SQLAlchemy async operations.
 """
 
+import logging
+import traceback
+
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,6 +14,8 @@ from src.app.core.domain.entities.keyword_run import KeywordRun
 from src.app.core.domain.errors import RepositoryError
 from src.app.infrastructure.db.mappers import keyword_run_mapper
 from src.app.infrastructure.db.models import KeywordRunModel
+
+logger = logging.getLogger(__name__)
 
 
 class PostgresKeywordRunRepository:
@@ -37,11 +42,21 @@ class PostgresKeywordRunRepository:
             RepositoryError: On database errors.
         """
         try:
+            logger.info("Converting KeywordRun to model: %s", run.id)
             model = keyword_run_mapper.to_model(run)
+            logger.info("Merging model into session")
             merged = await self._session.merge(model)
+            logger.info("Adding merged model to session")
             self._session.add(merged)
+            logger.info("Committing session")
             await self._session.commit()
-        except SQLAlchemyError as exc:
+            logger.info("Commit successful")
+        except Exception as exc:
+            logger.error(
+                "Failed to save keyword run: %s\n%s",
+                str(exc),
+                traceback.format_exc(),
+            )
             await self._session.rollback()
             raise RepositoryError(
                 operation="save_keyword_run",
