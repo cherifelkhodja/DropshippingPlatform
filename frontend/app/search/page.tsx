@@ -86,7 +86,7 @@ export default function SearchPage() {
           keyword,
           country,
           language: language || undefined,
-          limit: 50,
+          limit: 1000,
         });
 
         setResults((prev) => [...prev, result]);

@@ -579,7 +579,7 @@ export async function searchByKeyword(
       keyword: params.keyword,
       country: params.country,
       language: params.language,
-      limit: params.limit || 50,
+      limit: params.limit || 1000,
     }),
   });
 }
