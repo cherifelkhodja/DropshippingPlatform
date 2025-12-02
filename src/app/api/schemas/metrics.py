@@ -4,7 +4,7 @@ Pydantic models for page metrics history endpoints.
 Sprint 7: Historisation & Time Series.
 """
 
-from datetime import date, datetime
+from datetime import date as DateType, datetime
 from typing import Optional
 
 from pydantic import BaseModel, Field
@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 class PageDailyMetricsResponse(BaseModel):
     """Response model for a single daily metrics snapshot."""
 
-    date: date = Field(description="Date of the snapshot")
+    date: DateType = Field(description="Date of the snapshot")
     ads_count: int = Field(description="Number of active ads at snapshot time", ge=0)
     shop_score: float = Field(description="Shop score (0-100) at snapshot time")
     tier: str = Field(description="Tier classification (XXL, XL, L, M, S, XS)")
