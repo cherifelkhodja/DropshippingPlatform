@@ -16,6 +16,7 @@ import {
   TrendingDown,
   ChevronUp,
   ChevronDown,
+  Search,
 } from "lucide-react";
 import {
   Card,
@@ -30,8 +31,8 @@ import {
   type Column,
 } from "@/components/ui";
 import { Header, PageContent, RefreshButton } from "@/components/layout";
-import { getTopPages, getRankedPages, listPages, getRecentAlerts, getWatchlists } from "@/lib/api";
-import type { TopShopEntry, AlertResponse, WatchlistSummary } from "@/lib/types/api";
+import { getTopPages, getRankedPages, listPages, getRecentAlerts, getWatchlists, getAdminKeywords } from "@/lib/api";
+import type { TopShopEntry, AlertResponse, WatchlistSummary, AdminKeywordRunResponse } from "@/lib/types/api";
 
 interface DashboardStats {
   totalPages: number;
@@ -51,6 +52,7 @@ export default function DashboardPage() {
   const [topPages, setTopPages] = useState<TopShopEntry[]>([]);
   const [recentAlerts, setRecentAlerts] = useState<AlertResponse[]>([]);
   const [watchlists, setWatchlists] = useState<WatchlistSummary[]>([]);
+  const [recentSearches, setRecentSearches] = useState<AdminKeywordRunResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -78,7 +80,7 @@ export default function DashboardPage() {
 
     try {
       // Fetch data in parallel
-      const [topPagesResponse, allPagesResponse, xxlTierResponse, xlTierResponse, alertsResponse, watchlistsResponse] =
+      const [topPagesResponse, allPagesResponse, xxlTierResponse, xlTierResponse, alertsResponse, watchlistsResponse, keywordsResponse] =
         await Promise.allSettled([
           getTopPages(20, 0),
           listPages({ page_size: 1 }), // Get total count
@@ -86,6 +88,7 @@ export default function DashboardPage() {
           getRankedPages({ tier: "XL", limit: 1 }), // Get XL tier count
           getRecentAlerts(5),
           getWatchlists(5),
+          getAdminKeywords(10),
         ]);
 
       if (topPagesResponse.status === "fulfilled") {
@@ -98,6 +101,10 @@ export default function DashboardPage() {
 
       if (watchlistsResponse.status === "fulfilled") {
         setWatchlists(watchlistsResponse.value.items);
+      }
+
+      if (keywordsResponse.status === "fulfilled") {
+        setRecentSearches(keywordsResponse.value.items);
       }
 
       setStats({
@@ -365,6 +372,68 @@ export default function DashboardPage() {
           </Card>
         </div>
 
+        {/* Recent Searches */}
+        <Card className="mt-8">
+          <CardHeader
+            action={
+              <Link
+                href="/search"
+                className="text-sm text-blue-400 hover:text-blue-300"
+              >
+                Nouvelle recherche
+              </Link>
+            }
+          >
+            <div className="flex items-center gap-2">
+              <Search className="w-5 h-5 text-green-400" />
+              Recherches recentes
+            </div>
+          </CardHeader>
+          <CardBody>
+            {recentSearches.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="text-left text-sm text-slate-500 border-b border-slate-700">
+                      <th className="pb-3 font-medium">Mot-cle</th>
+                      <th className="pb-3 font-medium">Pays</th>
+                      <th className="pb-3 font-medium text-right">Annonces</th>
+                      <th className="pb-3 font-medium text-right">Pages</th>
+                      <th className="pb-3 font-medium text-right">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800">
+                    {recentSearches.map((search, index) => (
+                      <tr key={index} className="text-sm">
+                        <td className="py-3">
+                          <span className="font-medium text-slate-200">{search.keyword}</span>
+                        </td>
+                        <td className="py-3 text-slate-400">{search.country}</td>
+                        <td className="py-3 text-right text-slate-300">{search.total_ads_found}</td>
+                        <td className="py-3 text-right text-green-400">{search.total_pages_found}</td>
+                        <td className="py-3 text-right text-slate-500">
+                          {new Date(search.created_at).toLocaleDateString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="py-6 text-center text-slate-500">
+                <Search className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">Aucune recherche recente</p>
+                <Link
+                  href="/search"
+                  className="text-blue-400 hover:text-blue-300 text-sm mt-2 inline-block"
+                >
+                  Lancer une recherche
+                </Link>
+              </div>
+            )}
+          </CardBody>
+        </Card>
+
         {/* Info Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
           <Card>
@@ -373,6 +442,13 @@ export default function DashboardPage() {
                 Quick Actions
               </h3>
               <div className="space-y-2">
+                <Link
+                  href="/search"
+                  className="flex items-center gap-2 text-slate-400 hover:text-slate-200 transition-colors"
+                >
+                  <Search className="w-4 h-4" />
+                  <span>Nouvelle recherche</span>
+                </Link>
                 <Link
                   href="/pages"
                   className="flex items-center gap-2 text-slate-400 hover:text-slate-200 transition-colors"
