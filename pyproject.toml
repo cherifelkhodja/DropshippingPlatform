@@ -7,6 +7,7 @@ dependencies = [
     # Database
     "sqlalchemy[asyncio]>=2.0.0",
     "asyncpg>=0.29.0",
+    "alembic>=1.13.0",
     # HTTP clients
     "aiohttp>=3.9.0",
     "beautifulsoup4>=4.12.0",
@@ -35,8 +36,6 @@ dev = [
     "ruff>=0.2.0",
     # Type stubs
     "types-beautifulsoup4>=4.12.0",
-    # Migrations
-    "alembic>=1.13.0",
 ]
 
 [tool.pytest.ini_options]
