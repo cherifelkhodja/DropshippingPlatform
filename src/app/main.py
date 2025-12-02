@@ -44,8 +44,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info(
         "Starting application",
         extra={
-            "name": settings.name,
-            "version": settings.version,
+            "app_name": settings.name,
+            "app_version": settings.version,
             "environment": settings.environment,
         },
     )
