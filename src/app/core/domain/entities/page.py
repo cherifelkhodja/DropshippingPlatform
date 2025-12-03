@@ -50,6 +50,7 @@ class Page:
     id: str
     url: Url
     domain: str
+    meta_page_id: Optional[str] = None
     state: PageState = field(default_factory=PageState.initial)
     country: Optional[Country] = None
     language: Optional[Language] = None
@@ -80,6 +81,8 @@ class Page:
         url: Url,
         country: Optional[Country] = None,
         category: Optional[Category] = None,
+        meta_page_id: Optional[str] = None,
+        active_ads_count: int = 0,
     ) -> "Page":
         """Factory method to create a new Page.
 
@@ -88,6 +91,8 @@ class Page:
             url: The page URL.
             country: Target country (optional).
             category: Product category (optional).
+            meta_page_id: Meta/Facebook page ID (optional).
+            active_ads_count: Number of active ads (optional).
 
         Returns:
             A new Page instance in DISCOVERED state.
@@ -97,9 +102,12 @@ class Page:
             id=id,
             url=url,
             domain=url.domain,
+            meta_page_id=meta_page_id,
             state=PageState.initial(),
             country=country,
             category=category,
+            active_ads_count=active_ads_count,
+            total_ads_count=active_ads_count,
             first_seen_at=now,
             created_at=now,
             updated_at=now,

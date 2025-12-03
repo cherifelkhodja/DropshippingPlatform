@@ -24,7 +24,12 @@ from src.app.core.ports.logging_port import LoggingPort
 
 
 # Fields for basic ad search (search_ads_by_keyword, get_ads_by_page)
-BASIC_FIELDS = "id,page_id"
+# Use detail fields to get URLs for page creation
+BASIC_FIELDS = (
+    "id,page_id,page_name,ad_creation_time,ad_creative_bodies,"
+    "ad_creative_link_captions,ad_creative_link_titles,ad_snapshot_url,"
+    "publisher_platforms,languages"
+)
 
 # Fields for detailed ad information (get_ads_details)
 DETAIL_FIELDS = (

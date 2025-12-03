@@ -180,3 +180,52 @@ class PostgresPageRepository:
                 operation="blacklist_page",
                 reason=f"Failed to blacklist page: {exc}",
             ) from exc
+
+    async def get_by_meta_page_id(self, meta_page_id: str) -> Page | None:
+        """Retrieve a page by its Meta page ID.
+
+        Args:
+            meta_page_id: The Meta/Facebook page identifier.
+
+        Returns:
+            The Page entity if found, None otherwise.
+
+        Raises:
+            RepositoryError: On database errors.
+        """
+        try:
+            stmt = select(PageModel).where(PageModel.meta_page_id == meta_page_id)
+            result = await self._session.execute(stmt)
+            model = result.scalar_one_or_none()
+
+            if model is None:
+                return None
+
+            return page_mapper.to_domain(model)
+        except SQLAlchemyError as exc:
+            raise RepositoryError(
+                operation="get_by_meta_page_id",
+                reason=f"Failed to get page by meta_page_id: {exc}",
+            ) from exc
+
+    async def exists_by_meta_page_id(self, meta_page_id: str) -> bool:
+        """Check if a page with given Meta page ID exists.
+
+        Args:
+            meta_page_id: The Meta/Facebook page identifier.
+
+        Returns:
+            True if the page exists, False otherwise.
+
+        Raises:
+            RepositoryError: On database errors.
+        """
+        try:
+            stmt = select(PageModel.id).where(PageModel.meta_page_id == meta_page_id)
+            result = await self._session.execute(stmt)
+            return result.scalar_one_or_none() is not None
+        except SQLAlchemyError as exc:
+            raise RepositoryError(
+                operation="exists_by_meta_page_id",
+                reason=f"Failed to check page existence: {exc}",
+            ) from exc

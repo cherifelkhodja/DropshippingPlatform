@@ -402,6 +402,7 @@ TaskDispatcher = Annotated[TaskDispatcherPort, Depends(get_task_dispatcher)]
 
 def get_search_ads_use_case(
     page_repo: PageRepo,
+    ads_repo: AdsRepo,
     keyword_run_repo: KeywordRunRepo,
     http_session: HttpSession,
     settings: Settings,
@@ -414,6 +415,7 @@ def get_search_ads_use_case(
         meta_ads_port=get_meta_ads_client(http_session, settings),
         page_repository=page_repo,
         keyword_run_repository=keyword_run_repo,
+        ads_repository=ads_repo,
         logger=get_logger("usecase.search_ads"),
     )
 

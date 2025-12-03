@@ -32,6 +32,7 @@ def to_domain(model: PageModel) -> Page:
         id=str(model.id),
         url=Url(value=model.url),
         domain=model.domain,
+        meta_page_id=model.meta_page_id,
         state=PageState.from_string(model.state),
         country=Country(code=model.country) if model.country else None,
         language=Language(code=model.language) if model.language else None,
@@ -61,6 +62,7 @@ def to_model(entity: Page) -> PageModel:
     """
     return PageModel(
         id=UUID(entity.id),
+        meta_page_id=entity.meta_page_id,
         url=entity.url.value,
         domain=entity.domain,
         state=str(entity.state),

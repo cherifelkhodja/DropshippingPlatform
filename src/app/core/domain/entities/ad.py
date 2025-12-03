@@ -103,6 +103,11 @@ class Ad:
         meta_page_id: str,
         meta_ad_id: str,
         status: AdStatus = AdStatus.ACTIVE,
+        title: Optional[str] = None,
+        body: Optional[str] = None,
+        link_url: Optional[str] = None,
+        image_url: Optional[str] = None,
+        platforms: Optional[list[str]] = None,
     ) -> "Ad":
         """Factory method to create a new Ad.
 
@@ -112,17 +117,42 @@ class Ad:
             meta_page_id: Meta/Facebook page ID.
             meta_ad_id: Meta ad library ID.
             status: Initial ad status.
+            title: Ad title/headline.
+            body: Ad body text.
+            link_url: Destination URL.
+            image_url: Creative image URL.
+            platforms: List of platform names.
 
         Returns:
             A new Ad instance.
         """
         now = datetime.utcnow()
+
+        # Convert platform strings to AdPlatform enums
+        platform_enums: list[AdPlatform] = []
+        if platforms:
+            for p in platforms:
+                p_lower = p.lower() if isinstance(p, str) else ""
+                if "facebook" in p_lower:
+                    platform_enums.append(AdPlatform.FACEBOOK)
+                elif "instagram" in p_lower:
+                    platform_enums.append(AdPlatform.INSTAGRAM)
+                elif "messenger" in p_lower:
+                    platform_enums.append(AdPlatform.MESSENGER)
+                elif "audience" in p_lower:
+                    platform_enums.append(AdPlatform.AUDIENCE_NETWORK)
+
         return cls(
             id=id,
             page_id=page_id,
             meta_page_id=meta_page_id,
             meta_ad_id=meta_ad_id,
             status=status,
+            title=title,
+            body=body,
+            link_url=Url(link_url) if link_url else None,
+            image_url=Url(image_url) if image_url else None,
+            platforms=platform_enums,
             first_seen_at=now,
             last_seen_at=now,
             created_at=now,

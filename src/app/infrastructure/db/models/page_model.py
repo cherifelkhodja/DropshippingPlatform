@@ -53,6 +53,9 @@ class PageModel(Base):
         PG_UUID(as_uuid=True),
         primary_key=True,
     )
+    meta_page_id: Mapped[str | None] = mapped_column(
+        String(100), nullable=True, index=True
+    )
     url: Mapped[str] = mapped_column(Text, nullable=False)
     domain: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     state: Mapped[str] = mapped_column(String(50), nullable=False, default="discovered")

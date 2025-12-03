@@ -1,10 +1,14 @@
 """Search Ads By Keyword Use Case.
 
-Searches for ads by keyword and groups them by page.
+Searches for ads by keyword, creates pages, and saves everything to database.
 """
 
+from collections import Counter
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
+from urllib.parse import urlparse
+import re
 import uuid
 
 from ..domain import (
@@ -18,10 +22,12 @@ from ..domain import (
     KeywordRunResult,
     InvalidUrlError,
 )
+from ..domain.entities.page import Page
 from ..ports import (
     MetaAdsPort,
     PageRepository,
     KeywordRunRepository,
+    AdsRepository,
     LoggingPort,
 )
 
@@ -49,10 +55,10 @@ class SearchAdsByKeywordUseCase:
     This use case:
     1. Validates the keyword
     2. Calls MetaAdsPort to search for ads
-    3. Converts raw dicts to Ad entities
-    4. Deduplicates ads
-    5. Groups by page_id
-    6. Filters out blacklisted pages
+    3. Groups ads by meta_page_id
+    4. Filters out blacklisted pages
+    5. Creates new pages with extracted URLs
+    6. Saves pages and ads to database
     7. Records the KeywordRun
     8. Returns aggregated results
     """
@@ -62,11 +68,13 @@ class SearchAdsByKeywordUseCase:
         meta_ads_port: MetaAdsPort,
         page_repository: PageRepository,
         keyword_run_repository: KeywordRunRepository,
+        ads_repository: AdsRepository,
         logger: LoggingPort,
     ) -> None:
         self._meta_ads = meta_ads_port
         self._page_repo = page_repository
         self._keyword_run_repo = keyword_run_repository
+        self._ads_repo = ads_repository
         self._logger = logger
 
     async def execute(
@@ -77,21 +85,7 @@ class SearchAdsByKeywordUseCase:
         scan_id: ScanId | None = None,
         limit: int = 1000,
     ) -> SearchAdsResult:
-        """Execute the search ads by keyword use case.
-
-        Args:
-            keyword: The search keyword (must not be empty).
-            country: Target country for the search.
-            language: Optional language filter.
-            scan_id: Optional scan identifier (generated if not provided).
-            limit: Maximum number of ads to fetch.
-
-        Returns:
-            SearchAdsResult with pages found and ad count.
-
-        Raises:
-            ValueError: If keyword is empty.
-        """
+        """Execute the search ads by keyword use case."""
         # Validate keyword
         keyword = keyword.strip()
         if not keyword:
@@ -125,40 +119,107 @@ class SearchAdsByKeywordUseCase:
                 limit=limit,
             )
 
-            # Convert to Ad entities and deduplicate
-            ads_by_id: dict[str, Ad] = {}
-            for raw_ad in raw_ads:
-                ad = self._convert_raw_ad(raw_ad)
-                if ad and ad.id not in ads_by_id:
-                    ads_by_id[ad.id] = ad
+            # Group raw ads by meta_page_id
+            raw_ads_list = list(raw_ads)
+            ads_by_meta_page: dict[str, list[dict[str, Any]]] = {}
+            for raw_ad in raw_ads_list:
+                meta_page_id = raw_ad.get("page_id", "")
+                if meta_page_id:
+                    if meta_page_id not in ads_by_meta_page:
+                        ads_by_meta_page[meta_page_id] = []
+                    ads_by_meta_page[meta_page_id].append(raw_ad)
 
-            # Group by page_id
-            pages_with_ads: dict[str, list[Ad]] = {}
-            for ad in ads_by_id.values():
-                if ad.page_id not in pages_with_ads:
-                    pages_with_ads[ad.page_id] = []
-                pages_with_ads[ad.page_id].append(ad)
+            # Filter blacklisted pages (by meta_page_id in future, for now skip)
+            filtered_meta_pages = list(ads_by_meta_page.keys())
 
-            # Filter blacklisted pages
-            filtered_pages: list[str] = []
-            for page_id in pages_with_ads.keys():
-                is_blacklisted = await self._page_repo.is_blacklisted(page_id)
-                if not is_blacklisted:
-                    filtered_pages.append(page_id)
-
-            # Count new pages
+            # Process each page
             new_pages_count = 0
-            for page_id in filtered_pages:
-                exists = await self._page_repo.exists(page_id)
-                if not exists:
-                    new_pages_count += 1
+            all_ads_to_save: list[Ad] = []
+            saved_page_ids: list[str] = []
+
+            for meta_page_id in filtered_meta_pages:
+                page_ads = ads_by_meta_page[meta_page_id]
+
+                # Check if page already exists
+                existing_page = await self._page_repo.get_by_meta_page_id(meta_page_id)
+
+                if existing_page:
+                    # Update ads count and save
+                    page = existing_page.update_ads_count(
+                        active=len(page_ads),
+                        total=existing_page.total_ads_count + len(page_ads),
+                    )
+                    await self._page_repo.save(page)
+                    page_uuid = page.id
+                else:
+                    # Extract URL from ads
+                    url_str = self._extract_best_url(page_ads)
+                    page_name = page_ads[0].get("page_name", "") if page_ads else ""
+
+                    if url_str:
+                        try:
+                            # Create new page
+                            page_uuid = str(uuid.uuid4())
+                            page = Page.create(
+                                id=page_uuid,
+                                url=Url(url_str),
+                                country=country,
+                                meta_page_id=meta_page_id,
+                                active_ads_count=len(page_ads),
+                            )
+                            await self._page_repo.save(page)
+                            new_pages_count += 1
+                            self._logger.info(
+                                "Created new page",
+                                meta_page_id=meta_page_id,
+                                url=url_str,
+                                ads_count=len(page_ads),
+                            )
+                        except (InvalidUrlError, Exception) as e:
+                            self._logger.warning(
+                                "Failed to create page",
+                                meta_page_id=meta_page_id,
+                                url=url_str,
+                                error=str(e),
+                            )
+                            continue
+                    else:
+                        # No URL found, skip this page
+                        self._logger.warning(
+                            "No URL found for page",
+                            meta_page_id=meta_page_id,
+                            page_name=page_name,
+                        )
+                        continue
+
+                saved_page_ids.append(page_uuid)
+
+                # Convert ads for this page
+                for raw_ad in page_ads:
+                    ad = self._convert_raw_ad(raw_ad, page_uuid)
+                    if ad:
+                        all_ads_to_save.append(ad)
+
+            # Save all ads in batch
+            if all_ads_to_save:
+                try:
+                    await self._ads_repo.save_many(all_ads_to_save)
+                    self._logger.info(
+                        "Saved ads to database",
+                        ads_count=len(all_ads_to_save),
+                    )
+                except Exception as e:
+                    self._logger.error(
+                        "Failed to save ads",
+                        error=str(e),
+                    )
 
             # Complete keyword run
             result = KeywordRunResult(
-                total_ads_found=len(ads_by_id),
-                unique_pages_found=len(filtered_pages),
+                total_ads_found=len(raw_ads_list),
+                unique_pages_found=len(saved_page_ids),
                 new_pages_found=new_pages_count,
-                ads_processed=len(ads_by_id),
+                ads_processed=len(all_ads_to_save),
             )
             keyword_run = keyword_run.complete(result)
             await self._keyword_run_repo.save(keyword_run)
@@ -166,14 +227,15 @@ class SearchAdsByKeywordUseCase:
             self._logger.info(
                 "Keyword search completed",
                 keyword=keyword,
-                ads_found=len(ads_by_id),
-                pages_found=len(filtered_pages),
+                ads_found=len(raw_ads_list),
+                pages_found=len(saved_page_ids),
                 new_pages=new_pages_count,
+                ads_saved=len(all_ads_to_save),
             )
 
             return SearchAdsResult(
-                pages=filtered_pages,
-                count_ads=len(ads_by_id),
+                pages=saved_page_ids,
+                count_ads=len(raw_ads_list),
                 scan_id=scan_id,
                 new_pages=new_pages_count,
             )
@@ -189,47 +251,134 @@ class SearchAdsByKeywordUseCase:
             )
             raise
 
-    def _convert_raw_ad(self, raw: dict[str, Any]) -> Ad | None:
+    def _extract_best_url(self, ads: list[dict[str, Any]]) -> str | None:
+        """Extract the most common URL from ads.
+
+        Looks in ad_creative_link_captions and ad_creative_link_titles.
+
+        Args:
+            ads: List of raw ad dictionaries.
+
+        Returns:
+            Most common URL or None if no valid URL found.
+        """
+        urls: list[str] = []
+
+        for ad in ads:
+            # Try link captions first
+            captions = ad.get("ad_creative_link_captions", [])
+            if isinstance(captions, list):
+                urls.extend(captions)
+            elif isinstance(captions, str):
+                urls.append(captions)
+
+            # Try link titles
+            titles = ad.get("ad_creative_link_titles", [])
+            if isinstance(titles, list):
+                urls.extend(titles)
+            elif isinstance(titles, str):
+                urls.append(titles)
+
+        # Clean and validate URLs
+        valid_urls: list[str] = []
+        for url in urls:
+            cleaned = self._clean_url(url)
+            if cleaned:
+                valid_urls.append(cleaned)
+
+        if not valid_urls:
+            return None
+
+        # Return most common URL
+        counter = Counter(valid_urls)
+        most_common = counter.most_common(1)
+        return most_common[0][0] if most_common else None
+
+    def _clean_url(self, text: str) -> str | None:
+        """Clean and validate a URL from ad text.
+
+        Args:
+            text: Raw text that might contain a URL.
+
+        Returns:
+            Cleaned URL or None if invalid.
+        """
+        if not text:
+            return None
+
+        text = text.strip()
+
+        # If it's already a full URL
+        if text.startswith(("http://", "https://")):
+            try:
+                parsed = urlparse(text)
+                if parsed.netloc:
+                    return f"{parsed.scheme}://{parsed.netloc}"
+            except Exception:
+                pass
+
+        # Try to extract domain from text
+        # Match patterns like "example.com" or "www.example.com"
+        domain_pattern = r"(?:www\.)?([a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})?)"
+        match = re.search(domain_pattern, text)
+        if match:
+            domain = match.group(0)
+            # Remove www. prefix for consistency
+            if domain.startswith("www."):
+                domain = domain[4:]
+            return f"https://{domain}"
+
+        return None
+
+    def _convert_raw_ad(self, raw: dict[str, Any], page_uuid: str) -> Ad | None:
         """Convert a raw ad dict from Meta API to an Ad entity.
 
         Args:
             raw: Raw dictionary from Meta Ads API.
+            page_uuid: The internal page UUID to link to.
 
         Returns:
             Ad entity or None if conversion fails.
         """
         try:
-            ad_id = raw.get("id") or str(uuid.uuid4())
-            page_id = raw.get("page_id", "")
+            ad_id = str(uuid.uuid4())  # Generate internal UUID
             meta_page_id = raw.get("page_id", "")
-            meta_ad_id = raw.get("ad_library_id", ad_id)
+            meta_ad_id = raw.get("id", "")
 
-            if not page_id:
-                self._logger.warning(
-                    "Skipping ad without page_id",
-                    raw_ad_id=raw.get("id"),
-                )
+            if not meta_ad_id:
                 return None
 
-            # Validate link URL if present (just for validation, not used yet)
-            link_str = raw.get("link_url") or raw.get("link_caption")
-            if link_str:
-                try:
-                    Url(link_str)  # Validate URL format
-                except InvalidUrlError:
-                    pass
+            # Extract creative content
+            bodies = raw.get("ad_creative_bodies", [])
+            body = bodies[0] if isinstance(bodies, list) and bodies else ""
 
-            # Determine status
+            titles = raw.get("ad_creative_link_titles", [])
+            title = titles[0] if isinstance(titles, list) and titles else ""
+
+            captions = raw.get("ad_creative_link_captions", [])
+            link_url = captions[0] if isinstance(captions, list) and captions else ""
+
+            snapshot_url = raw.get("ad_snapshot_url", "")
+
+            # Platforms
+            platforms = raw.get("publisher_platforms", [])
+            if isinstance(platforms, str):
+                platforms = [platforms]
+
+            # Status
             status = AdStatus.ACTIVE
-            if raw.get("is_active") is False:
-                status = AdStatus.INACTIVE
 
             return Ad.create(
                 id=ad_id,
-                page_id=page_id,
+                page_id=page_uuid,
                 meta_page_id=meta_page_id,
                 meta_ad_id=meta_ad_id,
                 status=status,
+                title=title,
+                body=body,
+                link_url=link_url,
+                image_url=snapshot_url,
+                platforms=platforms if isinstance(platforms, list) else [],
             )
 
         except (KeyError, TypeError, AttributeError) as exc:
