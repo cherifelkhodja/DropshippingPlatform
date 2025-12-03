@@ -42,15 +42,12 @@ class PostgresKeywordRunRepository:
             RepositoryError: On database errors.
         """
         try:
-            logger.info("Converting KeywordRun to model: %s", run.id)
+            logger.debug("Saving KeywordRun: %s", run.id)
             model = keyword_run_mapper.to_model(run)
-            logger.info("Merging model into session")
-            merged = await self._session.merge(model)
-            logger.info("Adding merged model to session")
-            self._session.add(merged)
-            logger.info("Committing session")
+            # merge() returns an attached object, add() is not needed
+            await self._session.merge(model)
             await self._session.commit()
-            logger.info("Commit successful")
+            logger.debug("KeywordRun saved successfully")
         except Exception as exc:
             logger.error(
                 "Failed to save keyword run: %s\n%s",

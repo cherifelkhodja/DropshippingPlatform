@@ -40,8 +40,8 @@ class PostgresPageRepository:
         """
         try:
             model = page_mapper.to_model(page)
-            merged = await self._session.merge(model)
-            self._session.add(merged)
+            # merge() returns an attached object, so add() is not needed
+            await self._session.merge(model)
             await self._session.commit()
         except SQLAlchemyError as exc:
             await self._session.rollback()

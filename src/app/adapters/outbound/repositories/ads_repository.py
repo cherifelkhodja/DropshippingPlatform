@@ -7,6 +7,7 @@ from collections.abc import Sequence
 from uuid import UUID
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -31,7 +32,10 @@ class PostgresAdsRepository:
         self._session = session
 
     async def save_many(self, ads: Sequence[Ad]) -> None:
-        """Save multiple ads in batch.
+        """Save multiple ads in batch using upsert.
+
+        Uses PostgreSQL ON CONFLICT to handle duplicate meta_ad_id values.
+        If an ad with the same meta_ad_id exists, it updates relevant fields.
 
         Args:
             ads: Sequence of Ad entities to save.
@@ -39,11 +43,52 @@ class PostgresAdsRepository:
         Raises:
             RepositoryError: On database errors.
         """
+        if not ads:
+            return
+
         try:
             for ad in ads:
                 model = ad_mapper.to_model(ad)
-                merged = await self._session.merge(model)
-                self._session.add(merged)
+
+                # Build upsert statement
+                stmt = insert(AdModel).values(
+                    id=model.id,
+                    page_id=model.page_id,
+                    meta_page_id=model.meta_page_id,
+                    meta_ad_id=model.meta_ad_id,
+                    title=model.title,
+                    body=model.body,
+                    link_url=model.link_url,
+                    image_url=model.image_url,
+                    video_url=model.video_url,
+                    cta_type=model.cta_type,
+                    status=model.status,
+                    platforms=model.platforms,
+                    countries=model.countries,
+                    started_at=model.started_at,
+                    ended_at=model.ended_at,
+                    impressions_lower=model.impressions_lower,
+                    impressions_upper=model.impressions_upper,
+                    spend_lower=model.spend_lower,
+                    spend_upper=model.spend_upper,
+                    currency=model.currency,
+                    first_seen_at=model.first_seen_at,
+                    last_seen_at=model.last_seen_at,
+                    created_at=model.created_at,
+                    updated_at=model.updated_at,
+                )
+
+                # On conflict with meta_ad_id, update last_seen_at and status
+                stmt = stmt.on_conflict_do_update(
+                    index_elements=["meta_ad_id"],
+                    set_={
+                        "status": model.status,
+                        "last_seen_at": model.last_seen_at,
+                        "updated_at": model.updated_at,
+                    },
+                )
+
+                await self._session.execute(stmt)
 
             await self._session.commit()
         except SQLAlchemyError as exc:
