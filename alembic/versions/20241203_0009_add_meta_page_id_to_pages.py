@@ -18,17 +18,15 @@ depends_on = None
 
 def upgrade() -> None:
     """Add meta_page_id column to pages table."""
+    # Column with index=True already creates the index automatically
     op.add_column(
         "pages",
-        sa.Column("meta_page_id", sa.String(100), nullable=True, index=True),
+        sa.Column("meta_page_id", sa.String(100), nullable=True),
     )
-    # Create index for faster lookups
-    op.create_index(
-        "ix_pages_meta_page_id",
-        "pages",
-        ["meta_page_id"],
-        unique=False,
-    )
+    # Create index separately (if not exists handled by PostgreSQL)
+    op.execute("""
+        CREATE INDEX IF NOT EXISTS ix_pages_meta_page_id ON pages (meta_page_id)
+    """)
 
 
 def downgrade() -> None:
