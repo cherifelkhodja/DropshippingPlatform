@@ -132,6 +132,12 @@ class SearchAdsByKeywordUseCase:
             # Filter blacklisted pages (by meta_page_id in future, for now skip)
             filtered_meta_pages = list(ads_by_meta_page.keys())
 
+            self._logger.info(
+                "Grouped ads by page",
+                total_ads=len(raw_ads_list),
+                unique_pages=len(filtered_meta_pages),
+            )
+
             # Process each page
             new_pages_count = 0
             all_ads_to_save: list[Ad] = []
@@ -140,24 +146,24 @@ class SearchAdsByKeywordUseCase:
             for meta_page_id in filtered_meta_pages:
                 page_ads = ads_by_meta_page[meta_page_id]
 
-                # Check if page already exists
-                existing_page = await self._page_repo.get_by_meta_page_id(meta_page_id)
+                try:
+                    # Check if page already exists
+                    existing_page = await self._page_repo.get_by_meta_page_id(meta_page_id)
 
-                if existing_page:
-                    # Update ads count and save
-                    page = existing_page.update_ads_count(
-                        active=len(page_ads),
-                        total=existing_page.total_ads_count + len(page_ads),
-                    )
-                    await self._page_repo.save(page)
-                    page_uuid = page.id
-                else:
-                    # Extract URL from ads
-                    url_str = self._extract_best_url(page_ads)
-                    page_name = page_ads[0].get("page_name", "") if page_ads else ""
+                    if existing_page:
+                        # Update ads count and save
+                        page = existing_page.update_ads_count(
+                            active=len(page_ads),
+                            total=existing_page.total_ads_count + len(page_ads),
+                        )
+                        await self._page_repo.save(page)
+                        page_uuid = page.id
+                    else:
+                        # Extract URL from ads
+                        url_str = self._extract_best_url(page_ads)
+                        page_name = page_ads[0].get("page_name", "") if page_ads else ""
 
-                    if url_str:
-                        try:
+                        if url_str:
                             # Create new page
                             page_uuid = str(uuid.uuid4())
                             page = Page.create(
@@ -169,36 +175,37 @@ class SearchAdsByKeywordUseCase:
                             )
                             await self._page_repo.save(page)
                             new_pages_count += 1
-                            self._logger.info(
-                                "Created new page",
+                        else:
+                            # No URL found, skip this page
+                            self._logger.debug(
+                                "No URL found for page",
                                 meta_page_id=meta_page_id,
-                                url=url_str,
-                                ads_count=len(page_ads),
-                            )
-                        except (InvalidUrlError, Exception) as e:
-                            self._logger.warning(
-                                "Failed to create page",
-                                meta_page_id=meta_page_id,
-                                url=url_str,
-                                error=str(e),
+                                page_name=page_name,
                             )
                             continue
-                    else:
-                        # No URL found, skip this page
-                        self._logger.warning(
-                            "No URL found for page",
-                            meta_page_id=meta_page_id,
-                            page_name=page_name,
-                        )
-                        continue
 
-                saved_page_ids.append(page_uuid)
+                    saved_page_ids.append(page_uuid)
 
-                # Convert ads for this page
-                for raw_ad in page_ads:
-                    ad = self._convert_raw_ad(raw_ad, page_uuid)
-                    if ad:
-                        all_ads_to_save.append(ad)
+                    # Convert ads for this page
+                    for raw_ad in page_ads:
+                        ad = self._convert_raw_ad(raw_ad, page_uuid)
+                        if ad:
+                            all_ads_to_save.append(ad)
+
+                except Exception as e:
+                    self._logger.warning(
+                        "Failed to process page",
+                        meta_page_id=meta_page_id,
+                        error=str(e),
+                    )
+                    continue
+
+            self._logger.info(
+                "Processed pages",
+                saved_pages=len(saved_page_ids),
+                new_pages=new_pages_count,
+                ads_to_save=len(all_ads_to_save),
+            )
 
             # Save all ads in batch
             if all_ads_to_save:
@@ -241,14 +248,20 @@ class SearchAdsByKeywordUseCase:
             )
 
         except Exception as e:
-            # Record failure
-            keyword_run = keyword_run.fail(str(e))
-            await self._keyword_run_repo.save(keyword_run)
             self._logger.error(
                 "Keyword search failed",
                 keyword=keyword,
                 error=str(e),
             )
+            # Try to record failure, but don't fail if this fails too
+            try:
+                keyword_run = keyword_run.fail(str(e))
+                await self._keyword_run_repo.save(keyword_run)
+            except Exception as save_error:
+                self._logger.error(
+                    "Failed to save keyword run failure",
+                    error=str(save_error),
+                )
             raise
 
     def _extract_best_url(self, ads: list[dict[str, Any]]) -> str | None:
