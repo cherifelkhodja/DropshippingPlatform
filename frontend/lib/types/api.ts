@@ -450,3 +450,30 @@ export interface AnalyzeCreativesResponse {
   message: string;
   task_id: string | null;
 }
+
+// =============================================================================
+// Keyword Search Types
+// =============================================================================
+
+export interface KeywordSearchRequest {
+  keyword: string;
+  country: string;
+  language?: string | null;
+  limit?: number;
+}
+
+export interface KeywordSearchResponse {
+  scan_id: string;
+  keyword: string;
+  country: string;
+  ads_found: number;
+  pages_found: number;
+  new_pages: number;
+}
+
+export interface MultiKeywordSearchResult {
+  keyword: string;
+  status: "success" | "error";
+  result?: KeywordSearchResponse;
+  error?: string;
+}

@@ -38,6 +38,9 @@ import {
   PageCreativeInsightsResponse,
   CreativeAnalysisResponse,
   AnalyzeCreativesResponse,
+  // Keyword Search Types
+  KeywordSearchRequest,
+  KeywordSearchResponse,
 } from "@/lib/types/api";
 
 // =============================================================================
@@ -544,4 +547,21 @@ export async function triggerCreativeAnalysis(
       headers,
     }
   );
+}
+
+// =============================================================================
+// Keyword Search API Functions
+// =============================================================================
+
+/**
+ * Search for ads by keyword.
+ * Uses POST /keywords/search endpoint.
+ */
+export async function searchAdsByKeyword(
+  request: KeywordSearchRequest
+): Promise<KeywordSearchResponse> {
+  return apiFetch<KeywordSearchResponse>("/keywords/search", {
+    method: "POST",
+    body: JSON.stringify(request),
+  });
 }

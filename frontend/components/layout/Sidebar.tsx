@@ -11,6 +11,7 @@ import {
   Settings,
   BarChart3,
   Activity,
+  Search,
 } from "lucide-react";
 
 interface NavItem {
@@ -25,6 +26,11 @@ const mainNavItems: NavItem[] = [
     label: "Dashboard",
     href: "/",
     icon: <LayoutDashboard className="w-5 h-5" />,
+  },
+  {
+    label: "Search Ads",
+    href: "/search",
+    icon: <Search className="w-5 h-5" />,
   },
   {
     label: "Pages / Shops",
