@@ -356,7 +356,16 @@ class SearchAdsByKeywordUseCase:
             title = titles[0] if isinstance(titles, list) and titles else ""
 
             captions = raw.get("ad_creative_link_captions", [])
-            link_url = captions[0] if isinstance(captions, list) and captions else ""
+            link_caption = captions[0] if isinstance(captions, list) and captions else ""
+
+            # Normalize link_url to ensure it has a protocol
+            link_url = None
+            if link_caption:
+                if link_caption.startswith(("http://", "https://")):
+                    link_url = link_caption
+                else:
+                    # Add https:// prefix if missing
+                    link_url = f"https://{link_caption}"
 
             snapshot_url = raw.get("ad_snapshot_url", "")
 
@@ -381,7 +390,7 @@ class SearchAdsByKeywordUseCase:
                 platforms=platforms if isinstance(platforms, list) else [],
             )
 
-        except (KeyError, TypeError, AttributeError) as exc:
+        except Exception as exc:
             self._logger.warning(
                 "Failed to convert raw ad to domain entity",
                 raw_ad_id=raw.get("id"),
