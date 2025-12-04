@@ -143,6 +143,9 @@ class SearchAdsByKeywordUseCase:
             all_ads_to_save: list[Ad] = []
             saved_page_ids: list[str] = []
 
+            pages_without_url = 0
+            pages_with_invalid_url = 0
+
             for meta_page_id in filtered_meta_pages:
                 page_ads = ads_by_meta_page[meta_page_id]
 
@@ -164,11 +167,24 @@ class SearchAdsByKeywordUseCase:
                         page_name = page_ads[0].get("page_name", "") if page_ads else ""
 
                         if url_str:
+                            # Try to create Url value object
+                            try:
+                                url_obj = Url(url_str)
+                            except InvalidUrlError as url_err:
+                                self._logger.debug(
+                                    "Invalid URL format",
+                                    meta_page_id=meta_page_id,
+                                    url_str=url_str,
+                                    error=str(url_err),
+                                )
+                                pages_with_invalid_url += 1
+                                continue
+
                             # Create new page
                             page_uuid = str(uuid.uuid4())
                             page = Page.create(
                                 id=page_uuid,
-                                url=Url(url_str),
+                                url=url_obj,
                                 country=country,
                                 meta_page_id=meta_page_id,
                                 active_ads_count=len(page_ads),
@@ -177,11 +193,7 @@ class SearchAdsByKeywordUseCase:
                             new_pages_count += 1
                         else:
                             # No URL found, skip this page
-                            self._logger.debug(
-                                "No URL found for page",
-                                meta_page_id=meta_page_id,
-                                page_name=page_name,
-                            )
+                            pages_without_url += 1
                             continue
 
                     saved_page_ids.append(page_uuid)
@@ -199,6 +211,13 @@ class SearchAdsByKeywordUseCase:
                         error=str(e),
                     )
                     continue
+
+            if pages_without_url > 0 or pages_with_invalid_url > 0:
+                self._logger.info(
+                    "Pages skipped",
+                    pages_without_url=pages_without_url,
+                    pages_with_invalid_url=pages_with_invalid_url,
+                )
 
             self._logger.info(
                 "Processed pages",
@@ -267,7 +286,8 @@ class SearchAdsByKeywordUseCase:
     def _extract_best_url(self, ads: list[dict[str, Any]]) -> str | None:
         """Extract the most common URL from ads.
 
-        Looks in ad_creative_link_captions and ad_creative_link_titles.
+        Looks in ad_creative_link_captions, ad_creative_link_titles,
+        ad_creative_link_descriptions, and page_name as fallback.
 
         Args:
             ads: List of raw ad dictionaries.
@@ -278,26 +298,46 @@ class SearchAdsByKeywordUseCase:
         urls: list[str] = []
 
         for ad in ads:
-            # Try link captions first
+            # Try link captions first (often contains display URL like "example.com")
             captions = ad.get("ad_creative_link_captions", [])
             if isinstance(captions, list):
                 urls.extend(captions)
-            elif isinstance(captions, str):
+            elif isinstance(captions, str) and captions:
                 urls.append(captions)
 
             # Try link titles
             titles = ad.get("ad_creative_link_titles", [])
             if isinstance(titles, list):
                 urls.extend(titles)
-            elif isinstance(titles, str):
+            elif isinstance(titles, str) and titles:
                 urls.append(titles)
+
+            # Try link descriptions (sometimes contains URL)
+            descriptions = ad.get("ad_creative_link_descriptions", [])
+            if isinstance(descriptions, list):
+                urls.extend(descriptions)
+            elif isinstance(descriptions, str) and descriptions:
+                urls.append(descriptions)
 
         # Clean and validate URLs
         valid_urls: list[str] = []
         for url in urls:
+            if not url or not isinstance(url, str):
+                continue
             cleaned = self._clean_url(url)
             if cleaned:
                 valid_urls.append(cleaned)
+
+        if not valid_urls:
+            # Fallback: try to extract domain from page_name
+            # Some page names are actually domains like "example.com"
+            for ad in ads:
+                page_name = ad.get("page_name", "")
+                if page_name and isinstance(page_name, str):
+                    cleaned = self._clean_url(page_name)
+                    if cleaned:
+                        valid_urls.append(cleaned)
+                        break
 
         if not valid_urls:
             return None
@@ -321,6 +361,17 @@ class SearchAdsByKeywordUseCase:
 
         text = text.strip()
 
+        # Skip obvious non-URLs (common CTA text)
+        lower_text = text.lower()
+        skip_patterns = [
+            "shop now", "learn more", "sign up", "get started",
+            "buy now", "order now", "subscribe", "contact us",
+            "voir plus", "en savoir plus", "acheter", "commander",
+            "s'inscrire", "nous contacter", "decouvrir",
+        ]
+        if lower_text in skip_patterns:
+            return None
+
         # If it's already a full URL
         if text.startswith(("http://", "https://")):
             try:
@@ -331,15 +382,15 @@ class SearchAdsByKeywordUseCase:
                 pass
 
         # Try to extract domain from text
-        # Match patterns like "example.com" or "www.example.com"
-        domain_pattern = r"(?:www\.)?([a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})?)"
+        # Match patterns like "example.com", "www.example.com", "shop.example.co.uk"
+        # More permissive pattern to catch more domains
+        domain_pattern = r"(?:https?://)?(?:www\.)?([a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,})"
         match = re.search(domain_pattern, text)
         if match:
-            domain = match.group(0)
-            # Remove www. prefix for consistency
-            if domain.startswith("www."):
-                domain = domain[4:]
-            return f"https://{domain}"
+            domain = match.group(1)
+            # Validate it looks like a real domain (has at least one dot and valid TLD)
+            if "." in domain and len(domain.split(".")[-1]) >= 2:
+                return f"https://{domain}"
 
         return None
 
