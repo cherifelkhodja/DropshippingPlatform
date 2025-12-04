@@ -83,6 +83,7 @@ class PostgresKeywordRunRepository:
 
             return [keyword_run_mapper.to_domain(model) for model in models]
         except SQLAlchemyError as exc:
+            await self._session.rollback()
             raise RepositoryError(
                 operation="list_recent_keyword_runs",
                 reason=f"Failed to list keyword runs: {exc}",

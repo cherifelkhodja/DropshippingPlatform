@@ -121,6 +121,7 @@ class PostgresAdsRepository:
 
             return [ad_mapper.to_domain(model) for model in models]
         except SQLAlchemyError as exc:
+            await self._session.rollback()
             raise RepositoryError(
                 operation="list_ads_by_page",
                 reason=f"Failed to list ads: {exc}",

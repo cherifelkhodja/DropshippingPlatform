@@ -72,6 +72,7 @@ class PostgresPageRepository:
 
             return page_mapper.to_domain(model)
         except SQLAlchemyError as exc:
+            await self._session.rollback()
             raise RepositoryError(
                 operation="get_page",
                 reason=f"Failed to get page: {exc}",
@@ -102,6 +103,7 @@ class PostgresPageRepository:
             result = await self._session.execute(stmt)
             return result.scalar_one_or_none() is not None
         except SQLAlchemyError as exc:
+            await self._session.rollback()
             raise RepositoryError(
                 operation="exists_page",
                 reason=f"Failed to check page existence: {exc}",
@@ -123,6 +125,7 @@ class PostgresPageRepository:
 
             return [page_mapper.to_domain(model) for model in models]
         except SQLAlchemyError as exc:
+            await self._session.rollback()
             raise RepositoryError(
                 operation="list_all_pages",
                 reason=f"Failed to list pages: {exc}",
@@ -155,6 +158,7 @@ class PostgresPageRepository:
             result = await self._session.execute(stmt)
             return result.scalar_one_or_none() is not None
         except SQLAlchemyError as exc:
+            await self._session.rollback()
             raise RepositoryError(
                 operation="is_blacklisted",
                 reason=f"Failed to check blacklist: {exc}",
@@ -203,6 +207,7 @@ class PostgresPageRepository:
 
             return page_mapper.to_domain(model)
         except SQLAlchemyError as exc:
+            await self._session.rollback()
             raise RepositoryError(
                 operation="get_by_meta_page_id",
                 reason=f"Failed to get page by meta_page_id: {exc}",
@@ -225,6 +230,7 @@ class PostgresPageRepository:
             result = await self._session.execute(stmt)
             return result.scalar_one_or_none() is not None
         except SQLAlchemyError as exc:
+            await self._session.rollback()
             raise RepositoryError(
                 operation="exists_by_meta_page_id",
                 reason=f"Failed to check page existence: {exc}",
