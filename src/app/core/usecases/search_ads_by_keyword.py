@@ -166,35 +166,44 @@ class SearchAdsByKeywordUseCase:
                         url_str = self._extract_best_url(page_ads)
                         page_name = page_ads[0].get("page_name", "") if page_ads else ""
 
+                        # Try to create Url value object
+                        url_obj = None
                         if url_str:
-                            # Try to create Url value object
                             try:
                                 url_obj = Url(url_str)
                             except InvalidUrlError as url_err:
                                 self._logger.debug(
-                                    "Invalid URL format",
+                                    "Invalid URL format, using Facebook fallback",
                                     meta_page_id=meta_page_id,
                                     url_str=url_str,
                                     error=str(url_err),
                                 )
                                 pages_with_invalid_url += 1
+
+                        # Fallback to Facebook page URL if no valid URL found
+                        if url_obj is None:
+                            fallback_url = f"https://www.facebook.com/{meta_page_id}"
+                            try:
+                                url_obj = Url(fallback_url)
+                                pages_without_url += 1
+                            except InvalidUrlError:
+                                self._logger.warning(
+                                    "Could not create URL for page",
+                                    meta_page_id=meta_page_id,
+                                )
                                 continue
 
-                            # Create new page
-                            page_uuid = str(uuid.uuid4())
-                            page = Page.create(
-                                id=page_uuid,
-                                url=url_obj,
-                                country=country,
-                                meta_page_id=meta_page_id,
-                                active_ads_count=len(page_ads),
-                            )
-                            await self._page_repo.save(page)
-                            new_pages_count += 1
-                        else:
-                            # No URL found, skip this page
-                            pages_without_url += 1
-                            continue
+                        # Create new page
+                        page_uuid = str(uuid.uuid4())
+                        page = Page.create(
+                            id=page_uuid,
+                            url=url_obj,
+                            country=country,
+                            meta_page_id=meta_page_id,
+                            active_ads_count=len(page_ads),
+                        )
+                        await self._page_repo.save(page)
+                        new_pages_count += 1
 
                     saved_page_ids.append(page_uuid)
 
@@ -250,6 +259,8 @@ class SearchAdsByKeywordUseCase:
             keyword_run = keyword_run.complete(result)
             await self._keyword_run_repo.save(keyword_run)
 
+            # Log tier breakdown
+            tier_counts = self._count_pages_by_tier(ads_by_meta_page, saved_page_ids)
             self._logger.info(
                 "Keyword search completed",
                 keyword=keyword,
@@ -257,6 +268,7 @@ class SearchAdsByKeywordUseCase:
                 pages_found=len(saved_page_ids),
                 new_pages=new_pages_count,
                 ads_saved=len(all_ads_to_save),
+                tier_breakdown=tier_counts,
             )
 
             return SearchAdsResult(
@@ -461,3 +473,56 @@ class SearchAdsByKeywordUseCase:
                 error=str(exc),
             )
             return None
+
+    @staticmethod
+    def _get_tier(ads_count: int) -> str:
+        """Get tier classification based on active ads count.
+
+        Tiers:
+            - inactif: 0 ads
+            - XS: 1-9 ads
+            - S: 10-19 ads
+            - M: 20-34 ads
+            - L: 35-79 ads
+            - XL: 80-149 ads
+            - XXL: 150+ ads
+        """
+        if ads_count == 0:
+            return "inactif"
+        elif ads_count < 10:
+            return "XS"
+        elif ads_count < 20:
+            return "S"
+        elif ads_count < 35:
+            return "M"
+        elif ads_count < 80:
+            return "L"
+        elif ads_count < 150:
+            return "XL"
+        else:
+            return "XXL"
+
+    def _count_pages_by_tier(
+        self,
+        ads_by_meta_page: dict[str, list[dict[str, Any]]],
+        saved_page_ids: list[str],
+    ) -> dict[str, int]:
+        """Count pages by tier classification.
+
+        Args:
+            ads_by_meta_page: Dict mapping meta_page_id to list of ads.
+            saved_page_ids: List of saved page UUIDs.
+
+        Returns:
+            Dict with tier counts.
+        """
+        tier_counts: dict[str, int] = {
+            "XS": 0, "S": 0, "M": 0, "L": 0, "XL": 0, "XXL": 0
+        }
+
+        for meta_page_id, ads in ads_by_meta_page.items():
+            tier = self._get_tier(len(ads))
+            if tier in tier_counts:
+                tier_counts[tier] += 1
+
+        return tier_counts
